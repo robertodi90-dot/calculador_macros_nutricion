@@ -35,7 +35,7 @@ const mealsContainer = document.getElementById('mealsContainer');
 
 function toNumber(value) {
   if (value === '' || value === null || value === undefined) return null;
-  const parsed = Number(value);
+  const parsed = Number(String(value).replace(',', '.'));
   return Number.isFinite(parsed) ? parsed : null;
 }
 
@@ -63,7 +63,10 @@ function normalizeFood(rawFood) {
   if (protein < 0 || carbs < 0 || fat < 0) return null;
 
   return {
-    id: typeof rawFood.id === 'string' && rawFood.id ? rawFood.id : `food-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    id:
+      typeof rawFood.id === 'string' && rawFood.id
+        ? rawFood.id
+        : `food-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     name,
     protein,
     carbs,
@@ -115,17 +118,25 @@ function loadState() {
 
     const mealsCount = Math.min(12, Math.max(1, Math.round(toNumber(parsed.mealsCount) || 3)));
     const parsedMeals = Array.isArray(parsed.meals) ? parsed.meals : [];
+
     const meals = createInitialMeals(mealsCount).map((defaultMeal, index) => {
       const existing = parsedMeals[index] || {};
-      const foods = Array.isArray(existing.foods) ? existing.foods.map(normalizeMealFood).filter(Boolean) : [];
+      const foods = Array.isArray(existing.foods)
+        ? existing.foods.map(normalizeMealFood).filter(Boolean)
+        : [];
 
       return {
-        name: typeof existing.name === 'string' && existing.name.trim() ? existing.name.trim() : defaultMeal.name,
+        name:
+          typeof existing.name === 'string' && existing.name.trim()
+            ? existing.name.trim()
+            : defaultMeal.name,
         foods,
       };
     });
 
-    const foodLibrary = Array.isArray(parsed.foodLibrary) ? parsed.foodLibrary.map(normalizeFood).filter(Boolean) : [];
+    const foodLibrary = Array.isArray(parsed.foodLibrary)
+      ? parsed.foodLibrary.map(normalizeFood).filter(Boolean)
+      : [];
 
     const parsedUi = parsed.ui || {};
     const ui = {
@@ -152,13 +163,17 @@ function saveState() {
 }
 
 function applyTheme() {
+  if (!uiFields.themeToggle) return;
   document.documentElement.setAttribute('data-theme', state.ui.theme);
   uiFields.themeToggle.textContent = state.ui.theme === 'dark' ? 'Modo claro' : 'Modo oscuro';
 }
 
 function updateLibraryVisibility() {
+  if (!uiFields.librarySection || !uiFields.libraryToggle) return;
   uiFields.librarySection.classList.toggle('hidden', !state.ui.libraryOpen);
-  uiFields.libraryToggle.textContent = state.ui.libraryOpen ? 'Ocultar biblioteca de alimentos' : 'Mostrar biblioteca de alimentos';
+  uiFields.libraryToggle.textContent = state.ui.libraryOpen
+    ? 'Ocultar biblioteca de alimentos'
+    : 'Mostrar biblioteca de alimentos';
 }
 
 function getFoodTotals(food) {
@@ -182,7 +197,7 @@ function getMealTotals(meal) {
         calories: acc.calories + item.calories,
       };
     },
-    { protein: 0, carbs: 0, fat: 0, calories: 0 },
+    { protein: 0, carbs: 0, fat: 0, calories: 0 }
   );
 }
 
@@ -197,7 +212,7 @@ function getDayTotals() {
         calories: acc.calories + subtotal.calories,
       };
     },
-    { protein: 0, carbs: 0, fat: 0, calories: 0 },
+    { protein: 0, carbs: 0, fat: 0, calories: 0 }
   );
 }
 
@@ -228,7 +243,7 @@ function renderFoodLibrary() {
           P ${food.protein.toFixed(1)} g · C ${food.carbs.toFixed(1)} g · G ${food.fat.toFixed(1)} g · ${Math.round(food.caloriesPer100)} kcal / 100 g
         </p>
       </li>
-    `,
+    `
     )
     .join('');
 }
@@ -250,7 +265,10 @@ function renderMeals() {
   mealsContainer.innerHTML = state.meals
     .map((meal, mealIndex) => {
       const mealTotals = getMealTotals(meal);
-      const foodsHtml = meal.foods.length ? `<ul class="food-list">${meal.foods.map(mealFoodItemHtml).join('')}</ul>` : '<p class="empty">Aún no hay ingredientes en esta comida.</p>';
+
+      const foodsHtml = meal.foods.length
+        ? `<ul class="food-list">${meal.foods.map(mealFoodItemHtml).join('')}</ul>`
+        : '<p class="empty">Aún no hay ingredientes en esta comida.</p>';
 
       const optionsHtml = state.foodLibrary
         .map((food) => `<option value="${food.id}">${food.name} (${Math.round(food.caloriesPer100)} kcal / 100 g)</option>`)
@@ -336,7 +354,9 @@ function bindMealEvents() {
 
     toggleButton.addEventListener('click', () => {
       form.classList.toggle('hidden');
-      if (!form.classList.contains('hidden')) form.elements.consumedGrams.focus();
+      if (!form.classList.contains('hidden')) {
+        form.elements.consumedGrams.focus();
+      }
     });
 
     form.addEventListener('submit', (event) => {
@@ -376,7 +396,10 @@ function updateLibraryCaloriesPreview() {
   const protein = toNumber(libraryFields.protein.value);
   const carbs = toNumber(libraryFields.carbs.value);
   const fat = toNumber(libraryFields.fat.value);
-  libraryFields.caloriesPreview.textContent = String(Math.round(calculateCaloriesPer100(protein, carbs, fat)));
+
+  libraryFields.caloriesPreview.textContent = String(
+    Math.round(calculateCaloriesPer100(protein, carbs, fat))
+  );
 }
 
 function bindLibraryEvents() {
@@ -428,17 +451,21 @@ function bindLibraryEvents() {
 }
 
 function bindUiEvents() {
-  uiFields.themeToggle.addEventListener('click', () => {
-    state.ui.theme = state.ui.theme === 'dark' ? 'light' : 'dark';
-    saveState();
-    applyTheme();
-  });
+  if (uiFields.themeToggle) {
+    uiFields.themeToggle.addEventListener('click', () => {
+      state.ui.theme = state.ui.theme === 'dark' ? 'light' : 'dark';
+      saveState();
+      applyTheme();
+    });
+  }
 
-  uiFields.libraryToggle.addEventListener('click', () => {
-    state.ui.libraryOpen = !state.ui.libraryOpen;
-    saveState();
-    updateLibraryVisibility();
-  });
+  if (uiFields.libraryToggle) {
+    uiFields.libraryToggle.addEventListener('click', () => {
+      state.ui.libraryOpen = !state.ui.libraryOpen;
+      saveState();
+      updateLibraryVisibility();
+    });
+  }
 }
 
 fields.dailyCalorieGoal.addEventListener('input', () => {
