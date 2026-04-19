@@ -3,70 +3,85 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Calculadora de Macros Nutricionales</title>
+    <title>Planificador Diario de Macros</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
     <main class="app">
-      <h1>Calculadora de Macros</h1>
-      <p class="subtitle">MVP simple · valores por 100 g</p>
+      <header>
+        <h1>Plan diario de comidas</h1>
+        <p class="subtitle">Versión vanilla · planificación simple del día</p>
+      </header>
 
-      <section class="card" aria-labelledby="food-section-title">
-        <h2 id="food-section-title">Alimento</h2>
-        <label for="foodName">Nombre del alimento</label>
-        <input id="foodName" name="foodName" type="text" autocomplete="off" placeholder="Ej: Arroz cocido" />
-        <p class="error" id="foodNameError"></p>
+      <section class="card" aria-labelledby="daily-config-title">
+        <h2 id="daily-config-title">Configuración diaria</h2>
+
+        <label for="dailyCalorieGoal">Objetivo de calorías del día (kcal)</label>
+        <input id="dailyCalorieGoal" name="dailyCalorieGoal" type="number" min="0" step="1" inputmode="numeric" placeholder="Ej: 2200" />
+
+        <label for="mealsCount">Cantidad de comidas</label>
+        <input id="mealsCount" name="mealsCount" type="number" min="1" max="12" step="1" inputmode="numeric" value="3" />
       </section>
 
-      <section class="card" aria-labelledby="nutrition-section-title">
-        <h2 id="nutrition-section-title">Valores nutricionales por 100 g</h2>
+      <section class="card" aria-labelledby="food-library-title">
+        <h2 id="food-library-title">Biblioteca de alimentos</h2>
+        <p class="section-help">Guarda tus alimentos base y luego úsalos como ingredientes en cada comida.</p>
 
-        <label for="protein">Proteínas (g)</label>
-        <input id="protein" name="protein" type="number" min="0" step="0.1" inputmode="decimal" />
-        <p class="error" id="proteinError"></p>
+        <form id="foodLibraryForm" class="add-food-form" novalidate>
+          <label for="libraryFoodName">Nombre del alimento
+            <input id="libraryFoodName" name="foodName" type="text" autocomplete="off" placeholder="Ej: Arroz cocido" required />
+          </label>
+          <label for="libraryProtein">Proteínas por 100 g
+            <input id="libraryProtein" name="protein" type="number" min="0" step="0.1" inputmode="decimal" required />
+          </label>
+          <label for="libraryCarbs">Carbohidratos por 100 g
+            <input id="libraryCarbs" name="carbs" type="number" min="0" step="0.1" inputmode="decimal" required />
+          </label>
+          <label for="libraryFat">Grasas por 100 g
+            <input id="libraryFat" name="fat" type="number" min="0" step="0.1" inputmode="decimal" required />
+          </label>
+          <p class="readonly-label">Calorías por 100 g: <span id="libraryCaloriesPreview">0</span> kcal</p>
+          <p class="form-error" id="libraryFoodError" aria-live="polite"></p>
+          <button type="submit" class="primary">Guardar alimento</button>
+        </form>
 
-        <label for="carbs">Carbohidratos (g)</label>
-        <input id="carbs" name="carbs" type="number" min="0" step="0.1" inputmode="decimal" />
-        <p class="error" id="carbsError"></p>
-
-        <label for="fat">Grasas (g)</label>
-        <input id="fat" name="fat" type="number" min="0" step="0.1" inputmode="decimal" />
-        <p class="error" id="fatError"></p>
-
-        <p class="readonly-label">Calorías por 100 g</p>
-        <p class="readonly-value"><span id="caloriesPer100">0</span> kcal</p>
+        <div>
+          <h3 class="subheading">Mis alimentos guardados</h3>
+          <ul id="foodLibraryList" class="food-list"></ul>
+        </div>
       </section>
 
-      <section class="card" aria-labelledby="consumption-section-title">
-        <h2 id="consumption-section-title">Consumo</h2>
-        <label for="consumedGrams">Gramos a consumir (g)</label>
-        <input id="consumedGrams" name="consumedGrams" type="number" min="0.1" step="0.1" inputmode="decimal" />
-        <p class="error" id="consumedGramsError"></p>
-      </section>
-
-      <section class="card" aria-labelledby="results-section-title">
-        <h2 id="results-section-title">Resultado</h2>
-        <div class="result-grid" role="status" aria-live="polite">
-          <article class="result-item">
-            <h3>Calorías</h3>
-            <p><span id="resultCalories">0</span> kcal</p>
-          </article>
+      <section class="card" aria-labelledby="daily-summary-title">
+        <h2 id="daily-summary-title">Resumen diario</h2>
+        <div class="summary-grid" role="status" aria-live="polite">
           <article class="result-item">
             <h3>Proteínas</h3>
-            <p><span id="resultProtein">0.0</span> g</p>
+            <p><span id="dailyProtein">0.0</span> g</p>
           </article>
           <article class="result-item">
             <h3>Carbohidratos</h3>
-            <p><span id="resultCarbs">0.0</span> g</p>
+            <p><span id="dailyCarbs">0.0</span> g</p>
           </article>
           <article class="result-item">
             <h3>Grasas</h3>
-            <p><span id="resultFat">0.0</span> g</p>
+            <p><span id="dailyFat">0.0</span> g</p>
+          </article>
+          <article class="result-item">
+            <h3>Calorías consumidas</h3>
+            <p><span id="dailyCalories">0</span> kcal</p>
+          </article>
+          <article class="result-item">
+            <h3>Objetivo calórico</h3>
+            <p><span id="dailyGoal">0</span> kcal</p>
+          </article>
+          <article class="result-item">
+            <h3>Calorías restantes</h3>
+            <p><span id="dailyRemaining">0</span> kcal</p>
           </article>
         </div>
       </section>
 
-      <button id="clearButton" class="secondary" type="button">Limpiar</button>
+      <section id="mealsContainer" class="meals" aria-label="Comidas del día"></section>
     </main>
 
     <script src="app.js"></script>
