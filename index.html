@@ -1,12 +1,75 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Calculadora de Macros Nutricionales</title>
+    <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <main class="app">
+      <h1>Calculadora de Macros</h1>
+      <p class="subtitle">MVP simple · valores por 100 g</p>
+
+      <section class="card" aria-labelledby="food-section-title">
+        <h2 id="food-section-title">Alimento</h2>
+        <label for="foodName">Nombre del alimento</label>
+        <input id="foodName" name="foodName" type="text" autocomplete="off" placeholder="Ej: Arroz cocido" />
+        <p class="error" id="foodNameError"></p>
+      </section>
+
+      <section class="card" aria-labelledby="nutrition-section-title">
+        <h2 id="nutrition-section-title">Valores nutricionales por 100 g</h2>
+
+        <label for="calories">Calorías (kcal)</label>
+        <input id="calories" name="calories" type="number" min="0" step="0.1" inputmode="decimal" />
+        <p class="error" id="caloriesError"></p>
+
+        <label for="protein">Proteínas (g)</label>
+        <input id="protein" name="protein" type="number" min="0" step="0.1" inputmode="decimal" />
+        <p class="error" id="proteinError"></p>
+
+        <label for="carbs">Carbohidratos (g)</label>
+        <input id="carbs" name="carbs" type="number" min="0" step="0.1" inputmode="decimal" />
+        <p class="error" id="carbsError"></p>
+
+        <label for="fat">Grasas (g)</label>
+        <input id="fat" name="fat" type="number" min="0" step="0.1" inputmode="decimal" />
+        <p class="error" id="fatError"></p>
+      </section>
+
+      <section class="card" aria-labelledby="consumption-section-title">
+        <h2 id="consumption-section-title">Consumo</h2>
+        <label for="consumedGrams">Gramos a consumir (g)</label>
+        <input id="consumedGrams" name="consumedGrams" type="number" min="0.1" step="0.1" inputmode="decimal" />
+        <p class="error" id="consumedGramsError"></p>
+      </section>
+
+      <section class="card" aria-labelledby="results-section-title">
+        <h2 id="results-section-title">Resultado</h2>
+        <div class="result-grid" role="status" aria-live="polite">
+          <article class="result-item">
+            <h3>Calorías</h3>
+            <p><span id="resultCalories">0</span> kcal</p>
+          </article>
+          <article class="result-item">
+            <h3>Proteínas</h3>
+            <p><span id="resultProtein">0.0</span> g</p>
+          </article>
+          <article class="result-item">
+            <h3>Carbohidratos</h3>
+            <p><span id="resultCarbs">0.0</span> g</p>
+          </article>
+          <article class="result-item">
+            <h3>Grasas</h3>
+            <p><span id="resultFat">0.0</span> g</p>
+          </article>
+        </div>
+      </section>
+
+      <button id="clearButton" class="secondary" type="button">Limpiar</button>
+    </main>
+
+    <script src="app.js"></script>
   </body>
 </html>
