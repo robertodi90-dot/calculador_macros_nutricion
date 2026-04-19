@@ -71,6 +71,25 @@ input:focus {
   border-color: var(--primary);
 }
 
+.readonly-label {
+  margin: 6px 0 0;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.readonly-value {
+  margin: 0;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: #f8fafc;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
 .error {
   min-height: 1rem;
   margin: 0;

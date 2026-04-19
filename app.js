@@ -1,6 +1,5 @@
 const fields = {
   foodName: document.getElementById('foodName'),
-  calories: document.getElementById('calories'),
   protein: document.getElementById('protein'),
   carbs: document.getElementById('carbs'),
   fat: document.getElementById('fat'),
@@ -9,7 +8,6 @@ const fields = {
 
 const errors = {
   foodName: document.getElementById('foodNameError'),
-  calories: document.getElementById('caloriesError'),
   protein: document.getElementById('proteinError'),
   carbs: document.getElementById('carbsError'),
   fat: document.getElementById('fatError'),
@@ -23,16 +21,25 @@ const results = {
   fat: document.getElementById('resultFat'),
 };
 
+const caloriesPer100El = document.getElementById('caloriesPer100');
+
 function toNumber(value) {
   if (value === '') return null;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function calculateCaloriesPer100(protein, carbs, fat) {
+  if (protein === null || carbs === null || fat === null) {
+    return 0;
+  }
+
+  return protein * 4 + carbs * 4 + fat * 9;
+}
+
 function validate() {
   const values = {
     foodName: fields.foodName.value.trim(),
-    calories: toNumber(fields.calories.value),
     protein: toNumber(fields.protein.value),
     carbs: toNumber(fields.carbs.value),
     fat: toNumber(fields.fat.value),
@@ -41,12 +48,6 @@ function validate() {
 
   const nextErrors = {
     foodName: values.foodName ? '' : 'El nombre del alimento es obligatorio.',
-    calories:
-      values.calories === null
-        ? 'Las calorías son obligatorias.'
-        : values.calories < 0
-          ? 'Debe ser un valor mayor o igual a 0.'
-          : '',
     protein:
       values.protein === null
         ? 'Las proteínas son obligatorias.'
@@ -83,6 +84,7 @@ function validate() {
 }
 
 function resetResults() {
+  caloriesPer100El.textContent = '0';
   results.calories.textContent = '0';
   results.protein.textContent = '0.0';
   results.carbs.textContent = '0.0';
@@ -90,15 +92,25 @@ function resetResults() {
 }
 
 function calculate() {
+  const protein = toNumber(fields.protein.value);
+  const carbs = toNumber(fields.carbs.value);
+  const fat = toNumber(fields.fat.value);
+  const caloriesPer100 = calculateCaloriesPer100(protein, carbs, fat);
+
+  caloriesPer100El.textContent = String(Math.round(caloriesPer100));
+
   const { isValid, values } = validate();
   if (!isValid) {
-    resetResults();
+    results.calories.textContent = '0';
+    results.protein.textContent = '0.0';
+    results.carbs.textContent = '0.0';
+    results.fat.textContent = '0.0';
     return;
   }
 
   const factor = values.consumedGrams / 100;
 
-  results.calories.textContent = String(Math.round(values.calories * factor));
+  results.calories.textContent = String(Math.round(caloriesPer100 * factor));
   results.protein.textContent = (values.protein * factor).toFixed(1);
   results.carbs.textContent = (values.carbs * factor).toFixed(1);
   results.fat.textContent = (values.fat * factor).toFixed(1);

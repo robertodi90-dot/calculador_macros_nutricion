@@ -21,10 +21,6 @@
       <section class="card" aria-labelledby="nutrition-section-title">
         <h2 id="nutrition-section-title">Valores nutricionales por 100 g</h2>
 
-        <label for="calories">Calorías (kcal)</label>
-        <input id="calories" name="calories" type="number" min="0" step="0.1" inputmode="decimal" />
-        <p class="error" id="caloriesError"></p>
-
         <label for="protein">Proteínas (g)</label>
         <input id="protein" name="protein" type="number" min="0" step="0.1" inputmode="decimal" />
         <p class="error" id="proteinError"></p>
@@ -36,6 +32,9 @@
         <label for="fat">Grasas (g)</label>
         <input id="fat" name="fat" type="number" min="0" step="0.1" inputmode="decimal" />
         <p class="error" id="fatError"></p>
+
+        <p class="readonly-label">Calorías por 100 g</p>
+        <p class="readonly-value"><span id="caloriesPer100">0</span> kcal</p>
       </section>
 
       <section class="card" aria-labelledby="consumption-section-title">
