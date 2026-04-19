@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" data-theme="light">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -8,9 +8,12 @@
   </head>
   <body>
     <main class="app">
-      <header>
-        <h1>Plan diario de comidas</h1>
-        <p class="subtitle">Versión vanilla · planificación simple del día</p>
+      <header class="top-header">
+        <div>
+          <h1>Plan diario de comidas</h1>
+          <p class="subtitle">Versión vanilla · planificación simple del día</p>
+        </div>
+        <button id="themeToggle" type="button" class="secondary">Modo oscuro</button>
       </header>
 
       <section class="card" aria-labelledby="daily-config-title">
@@ -40,9 +43,15 @@
         />
       </section>
 
-      <section class="card" aria-labelledby="food-library-title">
+      <button id="libraryToggle" type="button" class="secondary">
+        Mostrar biblioteca de alimentos
+      </button>
+
+      <section id="librarySection" class="card hidden" aria-labelledby="food-library-title">
         <h2 id="food-library-title">Biblioteca de alimentos</h2>
-        <p class="section-help">Guarda tus alimentos base y luego úsalos como ingredientes en cada comida.</p>
+        <p class="section-help">
+          Guarda tus alimentos base y luego úsalos como ingredientes en cada comida.
+        </p>
 
         <form id="foodLibraryForm" class="add-food-form" novalidate>
           <label for="libraryFoodName">
@@ -96,7 +105,9 @@
             />
           </label>
 
-          <p class="readonly-label">Calorías por 100 g: <span id="libraryCaloriesPreview">0</span> kcal</p>
+          <p class="readonly-label">
+            Calorías por 100 g: <span id="libraryCaloriesPreview">0</span> kcal
+          </p>
           <p class="form-error" id="libraryFoodError" aria-live="polite"></p>
           <button type="submit" class="primary">Guardar alimento</button>
         </form>

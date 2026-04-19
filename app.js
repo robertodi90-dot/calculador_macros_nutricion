@@ -5,6 +5,12 @@ const fields = {
   mealsCount: document.getElementById('mealsCount'),
 };
 
+const uiFields = {
+  themeToggle: document.getElementById('themeToggle'),
+  libraryToggle: document.getElementById('libraryToggle'),
+  librarySection: document.getElementById('librarySection'),
+};
+
 const libraryFields = {
   form: document.getElementById('foodLibraryForm'),
   foodName: document.getElementById('libraryFoodName'),
@@ -98,6 +104,10 @@ function loadState() {
     mealsCount: 3,
     meals: createInitialMeals(3),
     foodLibrary: [],
+    ui: {
+      libraryOpen: false,
+      theme: 'light',
+    },
   };
 
   try {
@@ -108,6 +118,7 @@ function loadState() {
 
     const mealsCount = Math.min(12, Math.max(1, Math.round(toNumber(parsed.mealsCount) || 3)));
     const parsedMeals = Array.isArray(parsed.meals) ? parsed.meals : [];
+
     const meals = createInitialMeals(mealsCount).map((defaultMeal, index) => {
       const existing = parsedMeals[index] || {};
       const foods = Array.isArray(existing.foods)
@@ -127,11 +138,18 @@ function loadState() {
       ? parsed.foodLibrary.map(normalizeFood).filter(Boolean)
       : [];
 
+    const parsedUi = parsed.ui || {};
+    const ui = {
+      libraryOpen: Boolean(parsedUi.libraryOpen),
+      theme: parsedUi.theme === 'dark' ? 'dark' : 'light',
+    };
+
     return {
       dailyCalorieGoal: Math.max(0, toNumber(parsed.dailyCalorieGoal) || 0),
       mealsCount,
       meals,
       foodLibrary,
+      ui,
     };
   } catch {
     return baseState;
@@ -142,6 +160,20 @@ let state = loadState();
 
 function saveState() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+function applyTheme() {
+  if (!uiFields.themeToggle) return;
+  document.documentElement.setAttribute('data-theme', state.ui.theme);
+  uiFields.themeToggle.textContent = state.ui.theme === 'dark' ? 'Modo claro' : 'Modo oscuro';
+}
+
+function updateLibraryVisibility() {
+  if (!uiFields.librarySection || !uiFields.libraryToggle) return;
+  uiFields.librarySection.classList.toggle('hidden', !state.ui.libraryOpen);
+  uiFields.libraryToggle.textContent = state.ui.libraryOpen
+    ? 'Ocultar biblioteca de alimentos'
+    : 'Mostrar biblioteca de alimentos';
 }
 
 function getFoodTotals(food) {
@@ -233,6 +265,7 @@ function renderMeals() {
   mealsContainer.innerHTML = state.meals
     .map((meal, mealIndex) => {
       const mealTotals = getMealTotals(meal);
+
       const foodsHtml = meal.foods.length
         ? `<ul class="food-list">${meal.foods.map(mealFoodItemHtml).join('')}</ul>`
         : '<p class="empty">Aún no hay ingredientes en esta comida.</p>';
@@ -283,6 +316,8 @@ function renderMeals() {
 function render() {
   fields.dailyCalorieGoal.value = state.dailyCalorieGoal || '';
   fields.mealsCount.value = state.mealsCount;
+  applyTheme();
+  updateLibraryVisibility();
   renderFoodLibrary();
   renderSummary();
   renderMeals();
@@ -361,6 +396,7 @@ function updateLibraryCaloriesPreview() {
   const protein = toNumber(libraryFields.protein.value);
   const carbs = toNumber(libraryFields.carbs.value);
   const fat = toNumber(libraryFields.fat.value);
+
   libraryFields.caloriesPreview.textContent = String(
     Math.round(calculateCaloriesPer100(protein, carbs, fat))
   );
@@ -414,6 +450,24 @@ function bindLibraryEvents() {
   });
 }
 
+function bindUiEvents() {
+  if (uiFields.themeToggle) {
+    uiFields.themeToggle.addEventListener('click', () => {
+      state.ui.theme = state.ui.theme === 'dark' ? 'light' : 'dark';
+      saveState();
+      applyTheme();
+    });
+  }
+
+  if (uiFields.libraryToggle) {
+    uiFields.libraryToggle.addEventListener('click', () => {
+      state.ui.libraryOpen = !state.ui.libraryOpen;
+      saveState();
+      updateLibraryVisibility();
+    });
+  }
+}
+
 fields.dailyCalorieGoal.addEventListener('input', () => {
   state.dailyCalorieGoal = Math.max(0, toNumber(fields.dailyCalorieGoal.value) || 0);
   saveState();
@@ -426,6 +480,7 @@ fields.mealsCount.addEventListener('input', () => {
   updateMealCount(nextCount);
 });
 
+bindUiEvents();
 bindLibraryEvents();
 updateLibraryCaloriesPreview();
 render();
