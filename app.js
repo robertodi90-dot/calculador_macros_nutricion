@@ -9,6 +9,7 @@ const uiFields = {
   themeToggle: document.getElementById('themeToggle'),
   libraryToggle: document.getElementById('libraryToggle'),
   librarySection: document.getElementById('librarySection'),
+  resetDayButton: document.getElementById('resetDayButton'),
 };
 
 const libraryFields = {
@@ -248,12 +249,22 @@ function renderFoodLibrary() {
     .join('');
 }
 
-function mealFoodItemHtml(food) {
+function mealFoodItemHtml(food, mealIndex, foodIndex) {
   const totals = getFoodTotals(food);
 
   return `
     <li class="food-item">
-      <p class="food-name">${food.name}</p>
+      <div class="food-item-header">
+        <p class="food-name">${food.name}</p>
+        <button
+          type="button"
+          class="secondary delete-ingredient-button"
+          data-meal-index="${mealIndex}"
+          data-food-index="${foodIndex}"
+        >
+          Eliminar
+        </button>
+      </div>
       <p class="food-meta">
         ${food.consumedGrams} g · P ${totals.protein.toFixed(1)} g · C ${totals.carbs.toFixed(1)} g · G ${totals.fat.toFixed(1)} g · ${Math.round(totals.calories)} kcal
       </p>
@@ -267,11 +278,16 @@ function renderMeals() {
       const mealTotals = getMealTotals(meal);
 
       const foodsHtml = meal.foods.length
-        ? `<ul class="food-list">${meal.foods.map(mealFoodItemHtml).join('')}</ul>`
+        ? `<ul class="food-list">${meal.foods
+            .map((food, foodIndex) => mealFoodItemHtml(food, mealIndex, foodIndex))
+            .join('')}</ul>`
         : '<p class="empty">Aún no hay ingredientes en esta comida.</p>';
 
       const optionsHtml = state.foodLibrary
-        .map((food) => `<option value="${food.id}">${food.name} (${Math.round(food.caloriesPer100)} kcal / 100 g)</option>`)
+        .map(
+          (food) =>
+            `<option value="${food.id}">${food.name} (${Math.round(food.caloriesPer100)} kcal / 100 g)</option>`
+        )
         .join('');
 
       const ingredientFormHtml = state.foodLibrary.length
@@ -295,7 +311,9 @@ function renderMeals() {
         <section class="card meal-card" data-meal-index="${mealIndex}">
           <div class="meal-header">
             <h2>${meal.name}</h2>
-            <button type="button" class="primary add-food-toggle" ${state.foodLibrary.length ? '' : 'disabled'}>Agregar ingrediente</button>
+            <button type="button" class="primary add-food-toggle" ${state.foodLibrary.length ? '' : 'disabled'}>
+              Agregar ingrediente
+            </button>
           </div>
 
           ${ingredientFormHtml}
@@ -390,6 +408,23 @@ function bindMealEvents() {
       render();
     });
   });
+
+  const deleteButtons = mealsContainer.querySelectorAll('.delete-ingredient-button');
+
+  deleteButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      const mealIndex = Number(button.dataset.mealIndex);
+      const foodIndex = Number(button.dataset.foodIndex);
+
+      if (!Number.isInteger(mealIndex) || !Number.isInteger(foodIndex)) return;
+      if (!state.meals[mealIndex]) return;
+      if (!state.meals[mealIndex].foods[foodIndex]) return;
+
+      state.meals[mealIndex].foods.splice(foodIndex, 1);
+      saveState();
+      render();
+    });
+  });
 }
 
 function updateLibraryCaloriesPreview() {
@@ -464,6 +499,17 @@ function bindUiEvents() {
       state.ui.libraryOpen = !state.ui.libraryOpen;
       saveState();
       updateLibraryVisibility();
+    });
+  }
+
+  if (uiFields.resetDayButton) {
+    uiFields.resetDayButton.addEventListener('click', () => {
+      state.meals = state.meals.map((meal) => ({
+        ...meal,
+        foods: [],
+      }));
+      saveState();
+      render();
     });
   }
 }

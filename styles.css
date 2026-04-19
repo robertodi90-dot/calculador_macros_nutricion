@@ -72,6 +72,14 @@ h2 {
   font-size: 1.05rem;
 }
 
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 .subheading {
   margin: 4px 0;
   font-size: 0.95rem;
@@ -165,6 +173,13 @@ select:focus {
   color: var(--text);
 }
 
+.delete-ingredient-button {
+  min-height: 32px;
+  padding: 5px 10px;
+  font-size: 0.82rem;
+  flex-shrink: 0;
+}
+
 .primary:disabled {
   opacity: 0.5;
 }
@@ -212,6 +227,13 @@ select:focus {
 .food-name {
   margin: 0;
   font-weight: 700;
+}
+
+.food-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
 }
 
 .food-meta {
