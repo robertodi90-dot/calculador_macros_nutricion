@@ -5,6 +5,17 @@ const fields = {
   mealsCount: document.getElementById('mealsCount'),
 };
 
+const libraryFields = {
+  form: document.getElementById('foodLibraryForm'),
+  foodName: document.getElementById('libraryFoodName'),
+  protein: document.getElementById('libraryProtein'),
+  carbs: document.getElementById('libraryCarbs'),
+  fat: document.getElementById('libraryFat'),
+  caloriesPreview: document.getElementById('libraryCaloriesPreview'),
+  error: document.getElementById('libraryFoodError'),
+  list: document.getElementById('foodLibraryList'),
+};
+
 const summary = {
   protein: document.getElementById('dailyProtein'),
   carbs: document.getElementById('dailyCarbs'),
@@ -18,15 +29,12 @@ const mealsContainer = document.getElementById('mealsContainer');
 
 function toNumber(value) {
   if (value === '' || value === null || value === undefined) return null;
-  const parsed = Number(value);
+  const parsed = Number(String(value).replace(',', '.'));
   return Number.isFinite(parsed) ? parsed : null;
 }
 
 function calculateCaloriesPer100(protein, carbs, fat) {
-  if (protein === null || carbs === null || fat === null) {
-    return 0;
-  }
-
+  if (protein === null || carbs === null || fat === null) return 0;
   return protein * 4 + carbs * 4 + fat * 9;
 }
 
@@ -37,11 +45,59 @@ function createInitialMeals(count) {
   }));
 }
 
+function normalizeFood(rawFood) {
+  if (!rawFood || typeof rawFood !== 'object') return null;
+
+  const name = typeof rawFood.name === 'string' ? rawFood.name.trim() : '';
+  const protein = toNumber(rawFood.protein);
+  const carbs = toNumber(rawFood.carbs);
+  const fat = toNumber(rawFood.fat);
+
+  if (!name || protein === null || carbs === null || fat === null) return null;
+  if (protein < 0 || carbs < 0 || fat < 0) return null;
+
+  return {
+    id:
+      typeof rawFood.id === 'string' && rawFood.id
+        ? rawFood.id
+        : `food-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    name,
+    protein,
+    carbs,
+    fat,
+    caloriesPer100: calculateCaloriesPer100(protein, carbs, fat),
+  };
+}
+
+function normalizeMealFood(rawFood) {
+  if (!rawFood || typeof rawFood !== 'object') return null;
+
+  const name = typeof rawFood.name === 'string' ? rawFood.name.trim() : '';
+  const protein = toNumber(rawFood.protein);
+  const carbs = toNumber(rawFood.carbs);
+  const fat = toNumber(rawFood.fat);
+  const consumedGrams = toNumber(rawFood.consumedGrams);
+
+  if (!name || protein === null || carbs === null || fat === null || consumedGrams === null) return null;
+  if (protein < 0 || carbs < 0 || fat < 0 || consumedGrams <= 0) return null;
+
+  return {
+    sourceFoodId: typeof rawFood.sourceFoodId === 'string' ? rawFood.sourceFoodId : null,
+    name,
+    protein,
+    carbs,
+    fat,
+    consumedGrams,
+    caloriesPer100: calculateCaloriesPer100(protein, carbs, fat),
+  };
+}
+
 function loadState() {
   const baseState = {
     dailyCalorieGoal: 0,
     mealsCount: 3,
     meals: createInitialMeals(3),
+    foodLibrary: [],
   };
 
   try {
@@ -49,22 +105,33 @@ function loadState() {
     if (!raw) return baseState;
 
     const parsed = JSON.parse(raw);
+
     const mealsCount = Math.min(12, Math.max(1, Math.round(toNumber(parsed.mealsCount) || 3)));
     const parsedMeals = Array.isArray(parsed.meals) ? parsed.meals : [];
-
     const meals = createInitialMeals(mealsCount).map((defaultMeal, index) => {
       const existing = parsedMeals[index] || {};
-      const foods = Array.isArray(existing.foods) ? existing.foods : [];
+      const foods = Array.isArray(existing.foods)
+        ? existing.foods.map(normalizeMealFood).filter(Boolean)
+        : [];
+
       return {
-        name: typeof existing.name === 'string' && existing.name.trim() ? existing.name.trim() : defaultMeal.name,
+        name:
+          typeof existing.name === 'string' && existing.name.trim()
+            ? existing.name.trim()
+            : defaultMeal.name,
         foods,
       };
     });
+
+    const foodLibrary = Array.isArray(parsed.foodLibrary)
+      ? parsed.foodLibrary.map(normalizeFood).filter(Boolean)
+      : [];
 
     return {
       dailyCalorieGoal: Math.max(0, toNumber(parsed.dailyCalorieGoal) || 0),
       mealsCount,
       meals,
+      foodLibrary,
     };
   } catch {
     return baseState;
@@ -90,30 +157,30 @@ function getFoodTotals(food) {
 function getMealTotals(meal) {
   return meal.foods.reduce(
     (acc, food) => {
-      const foodTotals = getFoodTotals(food);
+      const item = getFoodTotals(food);
       return {
-        protein: acc.protein + foodTotals.protein,
-        carbs: acc.carbs + foodTotals.carbs,
-        fat: acc.fat + foodTotals.fat,
-        calories: acc.calories + foodTotals.calories,
+        protein: acc.protein + item.protein,
+        carbs: acc.carbs + item.carbs,
+        fat: acc.fat + item.fat,
+        calories: acc.calories + item.calories,
       };
     },
-    { protein: 0, carbs: 0, fat: 0, calories: 0 },
+    { protein: 0, carbs: 0, fat: 0, calories: 0 }
   );
 }
 
 function getDayTotals() {
   return state.meals.reduce(
     (acc, meal) => {
-      const mealTotals = getMealTotals(meal);
+      const subtotal = getMealTotals(meal);
       return {
-        protein: acc.protein + mealTotals.protein,
-        carbs: acc.carbs + mealTotals.carbs,
-        fat: acc.fat + mealTotals.fat,
-        calories: acc.calories + mealTotals.calories,
+        protein: acc.protein + subtotal.protein,
+        carbs: acc.carbs + subtotal.carbs,
+        fat: acc.fat + subtotal.fat,
+        calories: acc.calories + subtotal.calories,
       };
     },
-    { protein: 0, carbs: 0, fat: 0, calories: 0 },
+    { protein: 0, carbs: 0, fat: 0, calories: 0 }
   );
 }
 
@@ -129,17 +196,35 @@ function renderSummary() {
   summary.remaining.textContent = String(Math.round(remaining));
 }
 
-function createFoodItemHtml(food) {
+function renderFoodLibrary() {
+  if (!state.foodLibrary.length) {
+    libraryFields.list.innerHTML = '<li class="empty">Aún no tienes alimentos guardados.</li>';
+    return;
+  }
+
+  libraryFields.list.innerHTML = state.foodLibrary
+    .map(
+      (food) => `
+      <li class="food-item">
+        <p class="food-name">${food.name}</p>
+        <p class="food-meta">
+          P ${food.protein.toFixed(1)} g · C ${food.carbs.toFixed(1)} g · G ${food.fat.toFixed(1)} g · ${Math.round(food.caloriesPer100)} kcal / 100 g
+        </p>
+      </li>
+    `
+    )
+    .join('');
+}
+
+function mealFoodItemHtml(food) {
   const totals = getFoodTotals(food);
 
   return `
     <li class="food-item">
-      <div>
-        <p class="food-name">${food.name}</p>
-        <p class="food-meta">
-          ${food.consumedGrams} g · P ${totals.protein.toFixed(1)} g · C ${totals.carbs.toFixed(1)} g · G ${totals.fat.toFixed(1)} g · ${Math.round(totals.calories)} kcal
-        </p>
-      </div>
+      <p class="food-name">${food.name}</p>
+      <p class="food-meta">
+        ${food.consumedGrams} g · P ${totals.protein.toFixed(1)} g · C ${totals.carbs.toFixed(1)} g · G ${totals.fat.toFixed(1)} g · ${Math.round(totals.calories)} kcal
+      </p>
     </li>
   `;
 }
@@ -149,36 +234,38 @@ function renderMeals() {
     .map((meal, mealIndex) => {
       const mealTotals = getMealTotals(meal);
       const foodsHtml = meal.foods.length
-        ? `<ul class="food-list">${meal.foods.map((food) => createFoodItemHtml(food)).join('')}</ul>`
-        : '<p class="empty">Aún no hay alimentos en esta comida.</p>';
+        ? `<ul class="food-list">${meal.foods.map(mealFoodItemHtml).join('')}</ul>`
+        : '<p class="empty">Aún no hay ingredientes en esta comida.</p>';
+
+      const optionsHtml = state.foodLibrary
+        .map((food) => `<option value="${food.id}">${food.name} (${Math.round(food.caloriesPer100)} kcal / 100 g)</option>`)
+        .join('');
+
+      const ingredientFormHtml = state.foodLibrary.length
+        ? `
+          <form class="add-food-form hidden add-ingredient-form" novalidate>
+            <label>Seleccionar alimento
+              <select name="foodId" required>
+                ${optionsHtml}
+              </select>
+            </label>
+            <label>Gramos del ingrediente
+              <input name="consumedGrams" type="number" min="0.1" step="0.1" inputmode="decimal" required />
+            </label>
+            <p class="form-error" aria-live="polite"></p>
+            <button type="submit" class="primary">Agregar ingrediente</button>
+          </form>
+        `
+        : '<p class="empty">Primero guarda alimentos en la biblioteca para poder agregarlos a las comidas.</p>';
 
       return `
         <section class="card meal-card" data-meal-index="${mealIndex}">
           <div class="meal-header">
             <h2>${meal.name}</h2>
-            <button type="button" class="primary add-food-toggle">Agregar alimento</button>
+            <button type="button" class="primary add-food-toggle" ${state.foodLibrary.length ? '' : 'disabled'}>Agregar ingrediente</button>
           </div>
 
-          <form class="add-food-form hidden" novalidate>
-            <label>Nombre del alimento
-              <input name="foodName" type="text" autocomplete="off" placeholder="Ej: Pollo" required />
-            </label>
-            <label>Proteínas por 100 g
-              <input name="protein" type="number" min="0" step="0.1" inputmode="decimal" required />
-            </label>
-            <label>Carbohidratos por 100 g
-              <input name="carbs" type="number" min="0" step="0.1" inputmode="decimal" required />
-            </label>
-            <label>Grasas por 100 g
-              <input name="fat" type="number" min="0" step="0.1" inputmode="decimal" required />
-            </label>
-            <label>Gramos consumidos
-              <input name="consumedGrams" type="number" min="0.1" step="0.1" inputmode="decimal" required />
-            </label>
-            <p class="readonly-label">Calorías por 100 g: <span class="calories-preview">0</span> kcal</p>
-            <p class="form-error" aria-live="polite"></p>
-            <button type="submit" class="primary">Guardar alimento</button>
-          </form>
+          ${ingredientFormHtml}
 
           ${foodsHtml}
 
@@ -196,22 +283,15 @@ function renderMeals() {
 function render() {
   fields.dailyCalorieGoal.value = state.dailyCalorieGoal || '';
   fields.mealsCount.value = state.mealsCount;
+  renderFoodLibrary();
   renderSummary();
   renderMeals();
 }
 
 function updateMealCount(nextCount) {
   const normalized = Math.min(12, Math.max(1, Math.round(nextCount)));
-  const currentMeals = state.meals;
-
   const nextMeals = createInitialMeals(normalized).map((meal, index) => {
-    if (currentMeals[index]) {
-      return {
-        name: currentMeals[index].name,
-        foods: currentMeals[index].foods,
-      };
-    }
-
+    if (state.meals[index]) return state.meals[index];
     return meal;
   });
 
@@ -226,75 +306,111 @@ function updateMealCount(nextCount) {
 }
 
 function bindMealEvents() {
-  const mealCards = mealsContainer.querySelectorAll('.meal-card');
+  const cards = mealsContainer.querySelectorAll('.meal-card');
 
-  mealCards.forEach((card) => {
+  cards.forEach((card) => {
     const mealIndex = Number(card.dataset.mealIndex);
     const toggleButton = card.querySelector('.add-food-toggle');
-    const form = card.querySelector('.add-food-form');
-    const errorEl = card.querySelector('.form-error');
-    const caloriesPreview = card.querySelector('.calories-preview');
+    const form = card.querySelector('.add-ingredient-form');
+
+    if (!toggleButton || !form) return;
+
+    const errorEl = form.querySelector('.form-error');
 
     toggleButton.addEventListener('click', () => {
       form.classList.toggle('hidden');
       if (!form.classList.contains('hidden')) {
-        form.elements.foodName.focus();
+        form.elements.consumedGrams.focus();
       }
-    });
-
-    ['protein', 'carbs', 'fat'].forEach((key) => {
-      form.elements[key].addEventListener('input', () => {
-        const protein = toNumber(form.elements.protein.value);
-        const carbs = toNumber(form.elements.carbs.value);
-        const fat = toNumber(form.elements.fat.value);
-        const caloriesPer100 = calculateCaloriesPer100(protein, carbs, fat);
-        caloriesPreview.textContent = String(Math.round(caloriesPer100));
-      });
     });
 
     form.addEventListener('submit', (event) => {
       event.preventDefault();
 
-      const foodName = form.elements.foodName.value.trim();
-      const protein = toNumber(form.elements.protein.value);
-      const carbs = toNumber(form.elements.carbs.value);
-      const fat = toNumber(form.elements.fat.value);
+      const foodId = String(form.elements.foodId.value || '');
       const consumedGrams = toNumber(form.elements.consumedGrams.value);
+      const sourceFood = state.foodLibrary.find((item) => item.id === foodId);
 
-      if (!foodName) {
-        errorEl.textContent = 'Ingresa el nombre del alimento.';
+      if (!sourceFood) {
+        errorEl.textContent = 'Selecciona un alimento válido.';
         return;
       }
 
-      if ([protein, carbs, fat, consumedGrams].some((value) => value === null)) {
-        errorEl.textContent = 'Completa todos los campos numéricos.';
+      if (consumedGrams === null || consumedGrams <= 0) {
+        errorEl.textContent = 'Ingresa gramos mayores a 0.';
         return;
       }
-
-      if (protein < 0 || carbs < 0 || fat < 0) {
-        errorEl.textContent = 'Proteínas, carbohidratos y grasas deben ser valores ≥ 0.';
-        return;
-      }
-
-      if (consumedGrams <= 0) {
-        errorEl.textContent = 'Los gramos consumidos deben ser mayores a 0.';
-        return;
-      }
-
-      const caloriesPer100 = calculateCaloriesPer100(protein, carbs, fat);
 
       state.meals[mealIndex].foods.push({
-        name: foodName,
-        protein,
-        carbs,
-        fat,
+        sourceFoodId: sourceFood.id,
+        name: sourceFood.name,
+        protein: sourceFood.protein,
+        carbs: sourceFood.carbs,
+        fat: sourceFood.fat,
+        caloriesPer100: sourceFood.caloriesPer100,
         consumedGrams,
-        caloriesPer100,
       });
 
       saveState();
       render();
     });
+  });
+}
+
+function updateLibraryCaloriesPreview() {
+  const protein = toNumber(libraryFields.protein.value);
+  const carbs = toNumber(libraryFields.carbs.value);
+  const fat = toNumber(libraryFields.fat.value);
+  libraryFields.caloriesPreview.textContent = String(
+    Math.round(calculateCaloriesPer100(protein, carbs, fat))
+  );
+}
+
+function bindLibraryEvents() {
+  ['input', 'change'].forEach((eventName) => {
+    libraryFields.protein.addEventListener(eventName, updateLibraryCaloriesPreview);
+    libraryFields.carbs.addEventListener(eventName, updateLibraryCaloriesPreview);
+    libraryFields.fat.addEventListener(eventName, updateLibraryCaloriesPreview);
+  });
+
+  libraryFields.form.addEventListener('submit', (event) => {
+    event.preventDefault();
+
+    const foodName = libraryFields.foodName.value.trim();
+    const protein = toNumber(libraryFields.protein.value);
+    const carbs = toNumber(libraryFields.carbs.value);
+    const fat = toNumber(libraryFields.fat.value);
+
+    if (!foodName) {
+      libraryFields.error.textContent = 'Ingresa el nombre del alimento.';
+      return;
+    }
+
+    if ([protein, carbs, fat].some((value) => value === null)) {
+      libraryFields.error.textContent = 'Completa proteínas, carbohidratos y grasas.';
+      return;
+    }
+
+    if (protein < 0 || carbs < 0 || fat < 0) {
+      libraryFields.error.textContent = 'Proteínas, carbohidratos y grasas deben ser ≥ 0.';
+      return;
+    }
+
+    state.foodLibrary.push({
+      id: `food-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      name: foodName,
+      protein,
+      carbs,
+      fat,
+      caloriesPer100: calculateCaloriesPer100(protein, carbs, fat),
+    });
+
+    libraryFields.form.reset();
+    libraryFields.error.textContent = '';
+    updateLibraryCaloriesPreview();
+
+    saveState();
+    render();
   });
 }
 
@@ -310,4 +426,6 @@ fields.mealsCount.addEventListener('input', () => {
   updateMealCount(nextCount);
 });
 
+bindLibraryEvents();
+updateLibraryCaloriesPreview();
 render();
