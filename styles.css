@@ -72,11 +72,12 @@ h2 {
   font-size: 1.05rem;
 }
 
-.summary-header {
+.section-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 10px;
+  flex-wrap: wrap;
 }
 
 .subheading {
@@ -177,8 +178,7 @@ select:focus {
 }
 
 .primary,
-.secondary,
-.danger {
+.secondary {
   min-height: 40px;
   border-radius: 10px;
   font-size: 0.92rem;
@@ -198,13 +198,11 @@ select:focus {
   color: var(--text);
 }
 
-.danger {
-  min-height: 30px;
-  border: 1px solid var(--error);
-  background: transparent;
-  color: var(--error);
-  padding: 5px 8px;
+.delete-ingredient-button {
+  min-height: 32px;
+  padding: 5px 10px;
   font-size: 0.82rem;
+  flex-shrink: 0;
 }
 
 .primary:disabled {

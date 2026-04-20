@@ -20,41 +20,113 @@
         <h2 id="daily-config-title">Configuración diaria</h2>
 
         <label for="dailyCalorieGoal">Objetivo de calorías del día (kcal)</label>
-        <input id="dailyCalorieGoal" name="dailyCalorieGoal" type="number" min="0" step="1" inputmode="numeric" placeholder="Ej: 2200" />
+        <input
+          id="dailyCalorieGoal"
+          name="dailyCalorieGoal"
+          type="number"
+          min="0"
+          step="1"
+          inputmode="numeric"
+          placeholder="Ej: 2200"
+        />
 
         <label for="mealsCount">Cantidad de comidas</label>
-        <input id="mealsCount" name="mealsCount" type="number" min="1" max="12" step="1" inputmode="numeric" value="3" />
+        <input
+          id="mealsCount"
+          name="mealsCount"
+          type="number"
+          min="1"
+          max="12"
+          step="1"
+          inputmode="numeric"
+          value="3"
+        />
       </section>
 
-      <button id="libraryToggle" type="button" class="secondary">Mostrar biblioteca de alimentos</button>
+      <button id="libraryToggle" type="button" class="secondary">
+        Mostrar biblioteca de alimentos
+      </button>
 
       <section id="librarySection" class="card hidden" aria-labelledby="food-library-title">
         <h2 id="food-library-title">Biblioteca de alimentos</h2>
-        <p class="section-help">Guarda tus alimentos base y luego úsalos como ingredientes en cada comida.</p>
+        <p class="section-help">
+          Guarda tus alimentos base y luego úsalos como ingredientes en cada comida.
+        </p>
 
         <form id="foodLibraryForm" class="add-food-form" novalidate>
-          <label for="libraryFoodName">Nombre del alimento
-            <input id="libraryFoodName" name="foodName" type="text" autocomplete="off" placeholder="Ej: Arroz cocido" required />
+          <label for="libraryFoodName">
+            Nombre del alimento
+            <input
+              id="libraryFoodName"
+              name="foodName"
+              type="text"
+              autocomplete="off"
+              placeholder="Ej: Arroz cocido"
+              required
+            />
           </label>
-          <label for="libraryProtein">Proteínas por 100 g
-            <input id="libraryProtein" name="protein" type="number" min="0" step="0.1" inputmode="decimal" required />
+
+          <label for="libraryProtein">
+            Proteínas por 100 g
+            <input
+              id="libraryProtein"
+              name="protein"
+              type="number"
+              min="0"
+              step="0.1"
+              inputmode="decimal"
+              required
+            />
           </label>
-          <label for="libraryCarbs">Carbohidratos por 100 g
-            <input id="libraryCarbs" name="carbs" type="number" min="0" step="0.1" inputmode="decimal" required />
+
+          <label for="libraryCarbs">
+            Carbohidratos por 100 g
+            <input
+              id="libraryCarbs"
+              name="carbs"
+              type="number"
+              min="0"
+              step="0.1"
+              inputmode="decimal"
+              required
+            />
           </label>
-          <label for="libraryFat">Grasas por 100 g
-            <input id="libraryFat" name="fat" type="number" min="0" step="0.1" inputmode="decimal" required />
+
+          <label for="libraryFat">
+            Grasas por 100 g
+            <input
+              id="libraryFat"
+              name="fat"
+              type="number"
+              min="0"
+              step="0.1"
+              inputmode="decimal"
+              required
+            />
           </label>
-          <p class="readonly-label">Calorías por 100 g: <span id="libraryCaloriesPreview">0</span> kcal</p>
+
+          <p class="readonly-label">
+            Calorías por 100 g: <span id="libraryCaloriesPreview">0</span> kcal
+          </p>
           <p class="form-error" id="libraryFoodError" aria-live="polite"></p>
           <button type="submit" class="primary">Guardar alimento</button>
         </form>
 
         <div class="library-actions">
-          <button id="exportLibraryButton" type="button" class="secondary">Exportar biblioteca</button>
-          <button id="importLibraryButton" type="button" class="secondary">Importar biblioteca</button>
-          <input id="importLibraryInput" type="file" accept=".json,application/json" class="hidden" />
+          <button id="libraryExportButton" type="button" class="secondary">
+            Exportar biblioteca
+          </button>
+          <button id="libraryImportButton" type="button" class="secondary">
+            Importar biblioteca
+          </button>
+          <input
+            id="libraryImportInput"
+            type="file"
+            accept=".json,application/json"
+            class="hidden"
+          />
         </div>
+
         <p id="libraryStatusMessage" class="status-message" aria-live="polite"></p>
 
         <div>
@@ -64,10 +136,11 @@
       </section>
 
       <section class="card" aria-labelledby="daily-summary-title">
-        <div class="summary-header">
+        <div class="section-header">
           <h2 id="daily-summary-title">Resumen diario</h2>
           <button id="resetDayButton" type="button" class="secondary">Resetear día</button>
         </div>
+
         <div class="summary-grid" role="status" aria-live="polite">
           <article class="result-item">
             <h3>Proteínas</h3>
