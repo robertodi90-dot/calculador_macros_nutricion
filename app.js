@@ -14,6 +14,7 @@ const uiFields = {
   librarySection: document.getElementById('librarySection'),
   progressToggle: document.getElementById('progressToggle'),
   progressSection: document.getElementById('progressSection'),
+  printMenuButton: document.getElementById('printMenuButton'),
   resetDayButton: document.getElementById('resetDayButton'),
 };
 
@@ -433,6 +434,163 @@ function getDayTotals() {
     },
     { protein: 0, carbs: 0, fat: 0, calories: 0 }
   );
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
+function getPrintableDate() {
+  return new Intl.DateTimeFormat('es-ES', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  }).format(new Date());
+}
+
+function openPrintableMenu() {
+  const mealsWithFoods = state.meals.filter((meal) => meal.foods.length > 0);
+
+  if (!mealsWithFoods.length) {
+    alert('Aún no hay comidas con ingredientes para imprimir.');
+    return;
+  }
+
+  const dayTotals = getDayTotals();
+  const printableWindow = window.open('', '_blank', 'noopener,noreferrer');
+
+  if (!printableWindow) {
+    alert(
+      'No se pudo abrir la vista de impresión. Verifica si el navegador bloqueó la ventana emergente.'
+    );
+    return;
+  }
+
+  const mealsHtml = mealsWithFoods
+    .map((meal) => {
+      const mealTotals = getMealTotals(meal);
+      const ingredientsHtml = meal.foods
+        .map(
+          (food) => `
+            <li>
+              <span>${escapeHtml(food.name)}</span>
+              <strong>${food.consumedGrams.toFixed(1)} g</strong>
+            </li>
+          `
+        )
+        .join('');
+
+      return `
+        <section class="meal">
+          <h2>${escapeHtml(meal.name)}</h2>
+          <ul>${ingredientsHtml}</ul>
+          <p class="subtotal">
+            Subtotal: P ${mealTotals.protein.toFixed(1)} g · C ${mealTotals.carbs.toFixed(1)} g · G ${mealTotals.fat.toFixed(1)} g · ${Math.round(mealTotals.calories)} kcal
+          </p>
+        </section>
+      `;
+    })
+    .join('');
+
+  const printableHtml = `
+    <!DOCTYPE html>
+    <html lang="es">
+      <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Menú diario</title>
+        <style>
+          :root {
+            color-scheme: light;
+          }
+          * {
+            box-sizing: border-box;
+          }
+          body {
+            margin: 0;
+            font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+            color: #111827;
+            background: #ffffff;
+            line-height: 1.4;
+          }
+          main {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 24px;
+          }
+          h1 {
+            margin: 0 0 6px;
+            font-size: 1.7rem;
+          }
+          .date {
+            margin: 0 0 18px;
+            color: #374151;
+            font-size: 0.95rem;
+          }
+          .meal {
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            padding: 14px;
+            margin-bottom: 14px;
+            break-inside: avoid;
+            page-break-inside: avoid;
+          }
+          .meal h2 {
+            margin: 0 0 8px;
+            font-size: 1.1rem;
+          }
+          .meal ul {
+            margin: 0;
+            padding-left: 18px;
+          }
+          .meal li {
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 3px 0;
+          }
+          .subtotal {
+            margin: 10px 0 0;
+            font-weight: 700;
+            border-top: 1px solid #e5e7eb;
+            padding-top: 8px;
+          }
+          .daily-summary {
+            margin-top: 18px;
+            border-top: 2px solid #111827;
+            padding-top: 10px;
+            font-weight: 700;
+          }
+          @page {
+            size: auto;
+            margin: 12mm;
+          }
+        </style>
+      </head>
+      <body>
+        <main>
+          <h1>Menú diario de comidas</h1>
+          <p class="date">Fecha: ${escapeHtml(getPrintableDate())}</p>
+          ${mealsHtml}
+          <section class="daily-summary">
+            Resumen diario: P ${dayTotals.protein.toFixed(1)} g · C ${dayTotals.carbs.toFixed(1)} g · G ${dayTotals.fat.toFixed(1)} g · ${Math.round(dayTotals.calories)} kcal
+          </section>
+        </main>
+      </body>
+    </html>
+  `;
+
+  printableWindow.document.open();
+  printableWindow.document.write(printableHtml);
+  printableWindow.document.close();
+
+  printableWindow.focus();
+  printableWindow.print();
 }
 
 function renderSummary() {
@@ -1191,6 +1349,10 @@ function bindUiEvents() {
       saveDayState();
       render();
     });
+  }
+
+  if (uiFields.printMenuButton) {
+    uiFields.printMenuButton.addEventListener('click', openPrintableMenu);
   }
 
   window.addEventListener('resize', () => {
