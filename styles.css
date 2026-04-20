@@ -98,6 +98,10 @@ h2 {
   gap: 12px;
 }
 
+#progressToggle {
+  width: 100%;
+}
+
 .library-actions {
   display: grid;
   grid-template-columns: 1fr;

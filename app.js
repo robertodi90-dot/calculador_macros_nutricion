@@ -12,6 +12,8 @@ const uiFields = {
   themeToggle: document.getElementById('themeToggle'),
   libraryToggle: document.getElementById('libraryToggle'),
   librarySection: document.getElementById('librarySection'),
+  progressToggle: document.getElementById('progressToggle'),
+  progressSection: document.getElementById('progressSection'),
   resetDayButton: document.getElementById('resetDayButton'),
 };
 
@@ -104,6 +106,7 @@ function createDefaultDayState() {
     meals: createInitialMeals(3),
     ui: {
       libraryOpen: false,
+      progressOpen: true,
       theme: 'light',
     },
   };
@@ -259,6 +262,8 @@ function extractDayStateFromParsed(parsed) {
     meals: normalizeMeals(parsed.meals, mealsCount),
     ui: {
       libraryOpen: Boolean(parsedUi.libraryOpen),
+      progressOpen:
+        typeof parsedUi.progressOpen === 'boolean' ? parsedUi.progressOpen : true,
       theme: parsedUi.theme === 'dark' ? 'dark' : 'light',
     },
   };
@@ -376,6 +381,15 @@ function updateLibraryVisibility() {
   uiFields.libraryToggle.textContent = state.ui.libraryOpen
     ? 'Ocultar biblioteca de alimentos'
     : 'Mostrar biblioteca de alimentos';
+}
+
+function updateProgressVisibility() {
+  if (!uiFields.progressSection || !uiFields.progressToggle) return;
+
+  uiFields.progressSection.classList.toggle('hidden', !state.ui.progressOpen);
+  uiFields.progressToggle.textContent = state.ui.progressOpen
+    ? 'Ocultar registro diario'
+    : 'Mostrar registro diario';
 }
 
 function getFoodTotals(food) {
@@ -501,6 +515,7 @@ function progressItemHtml(entry) {
 
 function resizeCanvasToDisplaySize(canvas) {
   if (!canvas) return;
+
   const ratio = window.devicePixelRatio || 1;
   const rect = canvas.getBoundingClientRect();
   const width = Math.max(1, Math.round(rect.width * ratio));
@@ -720,6 +735,7 @@ function render() {
 
   applyTheme();
   updateLibraryVisibility();
+  updateProgressVisibility();
   renderFoodLibrary();
   renderSummary();
   renderMeals();
@@ -1155,6 +1171,14 @@ function bindUiEvents() {
       state.ui.libraryOpen = !state.ui.libraryOpen;
       saveDayState();
       updateLibraryVisibility();
+    });
+  }
+
+  if (uiFields.progressToggle) {
+    uiFields.progressToggle.addEventListener('click', () => {
+      state.ui.progressOpen = !state.ui.progressOpen;
+      saveDayState();
+      updateProgressVisibility();
     });
   }
 
