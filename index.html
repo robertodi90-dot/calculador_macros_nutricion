@@ -238,7 +238,12 @@
       <section class="card" aria-labelledby="daily-summary-title">
         <div class="section-header">
           <h2 id="daily-summary-title">Resumen diario</h2>
-          <button id="resetDayButton" type="button" class="secondary">Resetear día</button>
+          <div class="inline-actions">
+            <button id="printMenuButton" type="button" class="secondary">
+              Imprimir menú PDF
+            </button>
+            <button id="resetDayButton" type="button" class="secondary">Resetear día</button>
+          </div>
         </div>
 
         <div class="summary-grid" role="status" aria-live="polite">
@@ -271,6 +276,7 @@
 
       <section id="mealsContainer" class="meals" aria-label="Comidas del día"></section>
     </main>
+    <section id="printMenuSection" class="hidden" aria-hidden="true"></section>
 
     <script src="app.js"></script>
   </body>
