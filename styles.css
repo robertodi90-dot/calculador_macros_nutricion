@@ -437,10 +437,6 @@ body.printing-menu #printMenuSection {
     background: #ffffff !important;
   }
 
-  body:not(.printing-menu) .app {
-    display: none !important;
-  }
-
   body.printing-menu .app {
     display: none !important;
   }
