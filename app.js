@@ -1,6 +1,7 @@
 const LEGACY_STORAGE_KEY = 'macroPlannerDay_v1';
 const FOOD_LIBRARY_STORAGE_KEY = 'macroPlannerFoodLibrary_v1';
 const DAY_STATE_STORAGE_KEY = 'macroPlannerDayState_v1';
+const PROGRESS_LOG_STORAGE_KEY = 'macroPlannerProgressLog_v1';
 
 const fields = {
   dailyCalorieGoal: document.getElementById('dailyCalorieGoal'),
@@ -27,6 +28,28 @@ const libraryFields = {
   importButton: document.getElementById('libraryImportButton'),
   importInput: document.getElementById('libraryImportInput'),
   statusMessage: document.getElementById('libraryStatusMessage'),
+};
+
+const progressFields = {
+  form: document.getElementById('progressLogForm'),
+  date: document.getElementById('progressDate'),
+  weight: document.getElementById('progressWeight'),
+  bodyFat: document.getElementById('progressBodyFat'),
+  calories: document.getElementById('progressCalories'),
+  error: document.getElementById('progressFormError'),
+  status: document.getElementById('progressStatusMessage'),
+  list: document.getElementById('progressLogList'),
+  exportCsv: document.getElementById('exportProgressCsvButton'),
+  charts: {
+    weight: document.getElementById('weightChart'),
+    bodyFat: document.getElementById('bodyFatChart'),
+    calories: document.getElementById('caloriesChart'),
+  },
+  chartEmpty: {
+    weight: document.getElementById('weightChartEmpty'),
+    bodyFat: document.getElementById('bodyFatChartEmpty'),
+    calories: document.getElementById('caloriesChartEmpty'),
+  },
 };
 
 const summary = {
@@ -61,6 +84,10 @@ function calculateCaloriesPer100(protein, carbs, fat) {
 
 function createFoodId() {
   return `food-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function createLogId() {
+  return `log-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
 function createInitialMeals(count) {
@@ -129,6 +156,38 @@ function normalizeMealFood(rawFood) {
   };
 }
 
+function normalizeProgressLogEntry(rawEntry) {
+  if (!rawEntry || typeof rawEntry !== 'object') return null;
+
+  const date = typeof rawEntry.date === 'string' ? rawEntry.date.trim() : '';
+  const weight = toNumber(rawEntry.weight);
+  const bodyFat = toNumber(rawEntry.bodyFat);
+  const calories = toNumber(rawEntry.calories);
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
+  if (weight === null || weight <= 0) return null;
+  if (bodyFat === null || bodyFat < 0) return null;
+  if (calories === null || calories < 0) return null;
+
+  return {
+    id:
+      typeof rawEntry.id === 'string' && rawEntry.id
+        ? rawEntry.id
+        : createLogId(),
+    date,
+    weight,
+    bodyFat,
+    calories,
+  };
+}
+
+function sortProgressLogDesc(entries) {
+  return [...entries].sort((a, b) => {
+    if (a.date === b.date) return b.id.localeCompare(a.id);
+    return b.date.localeCompare(a.date);
+  });
+}
+
 function getFoodFingerprint(rawFood) {
   const food = normalizeFood(rawFood);
   if (!food) return null;
@@ -157,6 +216,25 @@ function dedupeFoodLibrary(rawLibrary) {
   return [...map.values()];
 }
 
+function normalizeMeals(rawMeals, mealsCount) {
+  const parsedMeals = Array.isArray(rawMeals) ? rawMeals : [];
+
+  return createInitialMeals(mealsCount).map((defaultMeal, index) => {
+    const existing = parsedMeals[index] || {};
+    const foods = Array.isArray(existing.foods)
+      ? existing.foods.map(normalizeMealFood).filter(Boolean)
+      : [];
+
+    return {
+      name:
+        typeof existing.name === 'string' && existing.name.trim()
+          ? existing.name.trim()
+          : defaultMeal.name,
+      foods,
+    };
+  });
+}
+
 function extractFoodLibraryFromParsed(parsed) {
   if (!parsed || typeof parsed !== 'object') return [];
   const library = Array.isArray(parsed.foodLibrary) ? parsed.foodLibrary : [];
@@ -173,28 +251,12 @@ function extractDayStateFromParsed(parsed) {
     toNumber(parsed.mealsCount) || parsedMealsInput.length || baseState.mealsCount
   );
   const mealsCount = Math.min(12, Math.max(1, parsedMealsCount));
-
-  const meals = createInitialMeals(mealsCount).map((defaultMeal, index) => {
-    const existing = parsedMealsInput[index] || {};
-    const foods = Array.isArray(existing.foods)
-      ? existing.foods.map(normalizeMealFood).filter(Boolean)
-      : [];
-
-    return {
-      name:
-        typeof existing.name === 'string' && existing.name.trim()
-          ? existing.name.trim()
-          : defaultMeal.name,
-      foods,
-    };
-  });
-
   const parsedUi = parsed.ui || {};
 
   return {
     dailyCalorieGoal: Math.max(0, toNumber(parsed.dailyCalorieGoal) || 0),
     mealsCount,
-    meals,
+    meals: normalizeMeals(parsed.meals, mealsCount),
     ui: {
       libraryOpen: Boolean(parsedUi.libraryOpen),
       theme: parsedUi.theme === 'dark' ? 'dark' : 'light',
@@ -243,6 +305,16 @@ function loadDayState() {
   return extractDayStateFromParsed(parsed);
 }
 
+function loadProgressLog() {
+  const raw = localStorage.getItem(PROGRESS_LOG_STORAGE_KEY);
+  if (!raw) return [];
+
+  const parsed = safeParseJson(raw);
+  if (!parsed || !Array.isArray(parsed)) return [];
+
+  return sortProgressLogDesc(parsed.map(normalizeProgressLogEntry).filter(Boolean));
+}
+
 function saveFoodLibrary() {
   const uniqueLibrary = dedupeFoodLibrary(state.foodLibrary);
   state.foodLibrary = uniqueLibrary;
@@ -260,10 +332,23 @@ function saveDayState() {
   localStorage.setItem(DAY_STATE_STORAGE_KEY, JSON.stringify(dayState));
 }
 
+function saveProgressLog() {
+  state.progressLog = sortProgressLogDesc(state.progressLog);
+  localStorage.setItem(PROGRESS_LOG_STORAGE_KEY, JSON.stringify(state.progressLog));
+}
+
+function showStatus(element, message, tone = 'info') {
+  if (!element) return;
+  element.textContent = message;
+  element.dataset.tone = tone;
+}
+
 function showLibraryStatus(message, tone = 'info') {
-  if (!libraryFields.statusMessage) return;
-  libraryFields.statusMessage.textContent = message;
-  libraryFields.statusMessage.dataset.tone = tone;
+  showStatus(libraryFields.statusMessage, message, tone);
+}
+
+function showProgressStatus(message, tone = 'info') {
+  showStatus(progressFields.status, message, tone);
 }
 
 function readLibraryFromImportPayload(parsed) {
@@ -349,6 +434,8 @@ function renderSummary() {
 }
 
 function renderFoodLibrary() {
+  if (!libraryFields.list) return;
+
   if (!state.foodLibrary.length) {
     libraryFields.list.innerHTML = '<li class="empty">Aún no tienes alimentos guardados.</li>';
     return;
@@ -391,7 +478,179 @@ function mealFoodItemHtml(food, mealIndex, foodIndex) {
   `;
 }
 
+function progressItemHtml(entry) {
+  return `
+    <li class="food-item">
+      <div class="food-item-header">
+        <p class="food-name">${entry.date}</p>
+        <div class="inline-actions">
+          <button type="button" class="secondary tiny edit-progress-button" data-id="${entry.id}">
+            Editar
+          </button>
+          <button type="button" class="secondary tiny delete-progress-button" data-id="${entry.id}">
+            Eliminar
+          </button>
+        </div>
+      </div>
+      <p class="food-meta">
+        Peso: ${entry.weight.toFixed(1)} kg · Grasa: ${entry.bodyFat.toFixed(1)}% · Calorías teóricas: ${Math.round(entry.calories)} kcal
+      </p>
+    </li>
+  `;
+}
+
+function resizeCanvasToDisplaySize(canvas) {
+  if (!canvas) return;
+  const ratio = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  const width = Math.max(1, Math.round(rect.width * ratio));
+  const height = Math.max(1, Math.round(rect.height * ratio));
+
+  if (canvas.width !== width || canvas.height !== height) {
+    canvas.width = width;
+    canvas.height = height;
+  }
+}
+
+function drawLineChart(canvas, emptyEl, points, label) {
+  if (!canvas || !emptyEl) return;
+
+  resizeCanvasToDisplaySize(canvas);
+
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  if (!points.length) {
+    emptyEl.textContent = `No hay datos para ${label.toLowerCase()}.`;
+    return;
+  }
+
+  emptyEl.textContent = '';
+
+  const padding = {
+    top: 24,
+    right: 24,
+    bottom: 42,
+    left: 44,
+  };
+
+  const width = canvas.width - padding.left - padding.right;
+  const height = canvas.height - padding.top - padding.bottom;
+  const values = points.map((point) => point.value);
+  const minValue = Math.min(...values);
+  const maxValue = Math.max(...values);
+  const range = maxValue - minValue || 1;
+  const xStep = points.length > 1 ? width / (points.length - 1) : 0;
+
+  const styles = getComputedStyle(document.documentElement);
+  const borderColor = styles.getPropertyValue('--border').trim() || '#2b3a4f';
+  const textColor = styles.getPropertyValue('--muted').trim() || '#93a2b8';
+  const lineColor = styles.getPropertyValue('--primary').trim() || '#7aa2ff';
+
+  ctx.strokeStyle = borderColor;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(padding.left, padding.top);
+  ctx.lineTo(padding.left, padding.top + height);
+  ctx.lineTo(padding.left + width, padding.top + height);
+  ctx.stroke();
+
+  ctx.strokeStyle = lineColor;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+
+  points.forEach((point, index) => {
+    const x = padding.left + index * xStep;
+    const normalized = (point.value - minValue) / range;
+    const y = padding.top + height - normalized * height;
+
+    if (index === 0) {
+      ctx.moveTo(x, y);
+    } else {
+      ctx.lineTo(x, y);
+    }
+  });
+
+  ctx.stroke();
+
+  ctx.fillStyle = lineColor;
+
+  points.forEach((point, index) => {
+    const x = padding.left + index * xStep;
+    const normalized = (point.value - minValue) / range;
+    const y = padding.top + height - normalized * height;
+
+    ctx.beginPath();
+    ctx.arc(x, y, 4, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  ctx.fillStyle = textColor;
+  ctx.font = `${Math.max(12, canvas.width / 30)}px sans-serif`;
+  ctx.fillText(maxValue.toFixed(1), 6, padding.top + 6);
+  ctx.fillText(minValue.toFixed(1), 6, padding.top + height);
+
+  const firstDate = points[0].date;
+  const lastDate = points[points.length - 1].date;
+  ctx.fillText(firstDate, padding.left, canvas.height - 10);
+  const lastWidth = ctx.measureText(lastDate).width;
+  ctx.fillText(lastDate, padding.left + width - lastWidth, canvas.height - 10);
+}
+
+function renderProgressCharts() {
+  if (!progressFields.charts.weight) return;
+
+  const chartData = [...state.progressLog]
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .map((entry) => ({
+      date: entry.date,
+      weight: entry.weight,
+      bodyFat: entry.bodyFat,
+      calories: entry.calories,
+    }));
+
+  drawLineChart(
+    progressFields.charts.weight,
+    progressFields.chartEmpty.weight,
+    chartData.map((point) => ({ date: point.date, value: point.weight })),
+    'Peso'
+  );
+
+  drawLineChart(
+    progressFields.charts.bodyFat,
+    progressFields.chartEmpty.bodyFat,
+    chartData.map((point) => ({ date: point.date, value: point.bodyFat })),
+    'Grasa corporal'
+  );
+
+  drawLineChart(
+    progressFields.charts.calories,
+    progressFields.chartEmpty.calories,
+    chartData.map((point) => ({ date: point.date, value: point.calories })),
+    'Calorías teóricas'
+  );
+}
+
+function renderProgressLog() {
+  if (!progressFields.list) return;
+
+  if (!state.progressLog.length) {
+    progressFields.list.innerHTML = '<li class="empty">Aún no hay registros diarios.</li>';
+  } else {
+    progressFields.list.innerHTML = sortProgressLogDesc(state.progressLog)
+      .map(progressItemHtml)
+      .join('');
+  }
+
+  renderProgressCharts();
+  bindProgressListEvents();
+}
+
 function renderMeals() {
+  if (!mealsContainer) return;
+
   mealsContainer.innerHTML = state.meals
     .map((meal, mealIndex) => {
       const mealTotals = getMealTotals(meal);
@@ -451,13 +710,20 @@ function renderMeals() {
 }
 
 function render() {
-  fields.dailyCalorieGoal.value = state.dailyCalorieGoal || '';
-  fields.mealsCount.value = state.mealsCount;
+  if (fields.dailyCalorieGoal) {
+    fields.dailyCalorieGoal.value = state.dailyCalorieGoal || '';
+  }
+
+  if (fields.mealsCount) {
+    fields.mealsCount.value = state.mealsCount;
+  }
+
   applyTheme();
   updateLibraryVisibility();
   renderFoodLibrary();
   renderSummary();
   renderMeals();
+  renderProgressLog();
 }
 
 function updateMealCount(nextCount) {
@@ -476,6 +742,8 @@ function updateMealCount(nextCount) {
 }
 
 function bindMealEvents() {
+  if (!mealsContainer) return;
+
   const cards = mealsContainer.querySelectorAll('.meal-card');
 
   cards.forEach((card) => {
@@ -544,10 +812,69 @@ function bindMealEvents() {
   });
 }
 
+function bindProgressListEvents() {
+  if (!progressFields.list) return;
+
+  progressFields.list.querySelectorAll('.delete-progress-button').forEach((button) => {
+    button.addEventListener('click', () => {
+      const id = button.dataset.id;
+      state.progressLog = state.progressLog.filter((entry) => entry.id !== id);
+      saveProgressLog();
+      renderProgressLog();
+      showProgressStatus('Registro eliminado.', 'success');
+    });
+  });
+
+  progressFields.list.querySelectorAll('.edit-progress-button').forEach((button) => {
+    button.addEventListener('click', () => {
+      const id = button.dataset.id;
+      const entry = state.progressLog.find((item) => item.id === id);
+      if (!entry) return;
+
+      const nextDate = prompt('Editar fecha (YYYY-MM-DD)', entry.date);
+      const nextWeight = prompt('Editar peso', String(entry.weight));
+      const nextBodyFat = prompt('Editar grasa corporal %', String(entry.bodyFat));
+      const nextCalories = prompt('Editar calorías teóricas', String(entry.calories));
+
+      if (
+        nextDate === null ||
+        nextWeight === null ||
+        nextBodyFat === null ||
+        nextCalories === null
+      ) {
+        return;
+      }
+
+      const updated = normalizeProgressLogEntry({
+        id: entry.id,
+        date: nextDate,
+        weight: nextWeight,
+        bodyFat: nextBodyFat,
+        calories: nextCalories,
+      });
+
+      if (!updated) {
+        showProgressStatus('Valores inválidos al editar el registro.', 'error');
+        return;
+      }
+
+      state.progressLog = state.progressLog.map((item) =>
+        item.id === entry.id ? updated : item
+      );
+
+      saveProgressLog();
+      renderProgressLog();
+      showProgressStatus('Registro editado correctamente.', 'success');
+    });
+  });
+}
+
 function updateLibraryCaloriesPreview() {
-  const protein = toNumber(libraryFields.protein.value);
-  const carbs = toNumber(libraryFields.carbs.value);
-  const fat = toNumber(libraryFields.fat.value);
+  if (!libraryFields.caloriesPreview) return;
+
+  const protein = toNumber(libraryFields.protein?.value);
+  const carbs = toNumber(libraryFields.carbs?.value);
+  const fat = toNumber(libraryFields.fat?.value);
 
   libraryFields.caloriesPreview.textContent = String(
     Math.round(calculateCaloriesPer100(protein, carbs, fat))
@@ -659,13 +986,48 @@ function handleImportFile(file) {
   reader.readAsText(file);
 }
 
+function exportProgressCsv() {
+  if (!state.progressLog.length) {
+    showProgressStatus('No hay registros para exportar.', 'warning');
+    return;
+  }
+
+  const headers = ['Fecha', 'Peso', 'Grasa corporal %', 'Calorías teóricas'];
+  const rows = sortProgressLogDesc(state.progressLog).map((entry) => [
+    entry.date,
+    entry.weight,
+    entry.bodyFat,
+    entry.calories,
+  ]);
+
+  const csv = [headers, ...rows]
+    .map((row) => row.map((cell) => `"${String(cell).replaceAll('"', '""')}"`).join(';'))
+    .join('\n');
+
+  const blob = new Blob([`\ufeff${csv}`], {
+    type: 'text/csv;charset=utf-8;',
+  });
+
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+
+  link.href = url;
+  link.download = 'registro-diario.csv';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+
+  showProgressStatus(`Se exportaron ${rows.length} registros en CSV.`, 'success');
+}
+
 function bindLibraryEvents() {
   if (!libraryFields.form) return;
 
   ['input', 'change'].forEach((eventName) => {
-    libraryFields.protein.addEventListener(eventName, updateLibraryCaloriesPreview);
-    libraryFields.carbs.addEventListener(eventName, updateLibraryCaloriesPreview);
-    libraryFields.fat.addEventListener(eventName, updateLibraryCaloriesPreview);
+    libraryFields.protein?.addEventListener(eventName, updateLibraryCaloriesPreview);
+    libraryFields.carbs?.addEventListener(eventName, updateLibraryCaloriesPreview);
+    libraryFields.fat?.addEventListener(eventName, updateLibraryCaloriesPreview);
   });
 
   libraryFields.form.addEventListener('submit', (event) => {
@@ -739,12 +1101,52 @@ function bindLibraryEvents() {
   }
 }
 
+function bindProgressEvents() {
+  if (!progressFields.form) return;
+
+  progressFields.form.addEventListener('submit', (event) => {
+    event.preventDefault();
+
+    const entry = normalizeProgressLogEntry({
+      id: createLogId(),
+      date: progressFields.date.value,
+      weight: progressFields.weight.value,
+      bodyFat: progressFields.bodyFat.value,
+      calories: progressFields.calories.value,
+    });
+
+    if (!progressFields.date.value) {
+      progressFields.error.textContent = 'La fecha es obligatoria.';
+      return;
+    }
+
+    if (!entry) {
+      progressFields.error.textContent =
+        'Completa correctamente fecha, peso, grasa corporal y calorías teóricas.';
+      return;
+    }
+
+    state.progressLog = sortProgressLogDesc([...state.progressLog, entry]);
+    saveProgressLog();
+
+    progressFields.form.reset();
+    progressFields.error.textContent = '';
+    renderProgressLog();
+    showProgressStatus('Registro guardado correctamente.', 'success');
+  });
+
+  if (progressFields.exportCsv) {
+    progressFields.exportCsv.addEventListener('click', exportProgressCsv);
+  }
+}
+
 function bindUiEvents() {
   if (uiFields.themeToggle) {
     uiFields.themeToggle.addEventListener('click', () => {
       state.ui.theme = state.ui.theme === 'dark' ? 'light' : 'dark';
       saveDayState();
       applyTheme();
+      renderProgressCharts();
     });
   }
 
@@ -766,6 +1168,10 @@ function bindUiEvents() {
       render();
     });
   }
+
+  window.addEventListener('resize', () => {
+    renderProgressCharts();
+  });
 }
 
 migrateLegacyStorageIfNeeded();
@@ -774,15 +1180,16 @@ const dayState = loadDayState();
 let state = {
   ...dayState,
   foodLibrary: loadFoodLibrary(),
+  progressLog: loadProgressLog(),
 };
 
-fields.dailyCalorieGoal.addEventListener('input', () => {
+fields.dailyCalorieGoal?.addEventListener('input', () => {
   state.dailyCalorieGoal = Math.max(0, toNumber(fields.dailyCalorieGoal.value) || 0);
   saveDayState();
   renderSummary();
 });
 
-fields.mealsCount.addEventListener('input', () => {
+fields.mealsCount?.addEventListener('input', () => {
   const nextCount = toNumber(fields.mealsCount.value);
   if (nextCount === null) return;
   updateMealCount(nextCount);
@@ -790,5 +1197,6 @@ fields.mealsCount.addEventListener('input', () => {
 
 bindUiEvents();
 bindLibraryEvents();
+bindProgressEvents();
 updateLibraryCaloriesPreview();
 render();
