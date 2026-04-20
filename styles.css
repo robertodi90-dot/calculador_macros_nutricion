@@ -330,7 +330,7 @@ select:focus {
   font-size: 0.95rem;
 }
 
-.print-menu {
+#printMenuSection {
   display: none;
 }
 
@@ -395,6 +395,14 @@ select:focus {
   font-weight: 700;
 }
 
+body.printing-menu .app {
+  display: none;
+}
+
+body.printing-menu #printMenuSection {
+  display: block;
+}
+
 @media (min-width: 640px) {
   .library-actions {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -429,8 +437,8 @@ select:focus {
     background: #ffffff !important;
   }
 
-  body * {
-    visibility: hidden !important;
+  body.printing-menu .app {
+    display: none !important;
   }
 
   #printMenuSection,
@@ -441,9 +449,5 @@ select:focus {
   #printMenuSection {
     display: block !important;
     position: static;
-  }
-
-  .app {
-    display: none !important;
   }
 }
