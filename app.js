@@ -1,4 +1,6 @@
-const STORAGE_KEY = 'macroPlannerDay_v1';
+const LEGACY_STORAGE_KEY = 'macroPlannerDay_v1';
+const FOOD_LIBRARY_STORAGE_KEY = 'macroPlannerFoodLibrary_v1';
+const DAY_STATE_STORAGE_KEY = 'macroPlannerDayState_v1';
 
 const fields = {
   dailyCalorieGoal: document.getElementById('dailyCalorieGoal'),
@@ -21,6 +23,10 @@ const libraryFields = {
   caloriesPreview: document.getElementById('libraryCaloriesPreview'),
   error: document.getElementById('libraryFoodError'),
   list: document.getElementById('foodLibraryList'),
+  exportButton: document.getElementById('libraryExportButton'),
+  importButton: document.getElementById('libraryImportButton'),
+  importInput: document.getElementById('libraryImportInput'),
+  statusMessage: document.getElementById('libraryStatusMessage'),
 };
 
 const summary = {
@@ -34,6 +40,14 @@ const summary = {
 
 const mealsContainer = document.getElementById('mealsContainer');
 
+function safeParseJson(raw) {
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
 function toNumber(value) {
   if (value === '' || value === null || value === undefined) return null;
   const parsed = Number(String(value).replace(',', '.'));
@@ -45,11 +59,27 @@ function calculateCaloriesPer100(protein, carbs, fat) {
   return protein * 4 + carbs * 4 + fat * 9;
 }
 
+function createFoodId() {
+  return `food-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
 function createInitialMeals(count) {
   return Array.from({ length: count }, (_, index) => ({
     name: `Comida ${index + 1}`,
     foods: [],
   }));
+}
+
+function createDefaultDayState() {
+  return {
+    dailyCalorieGoal: 0,
+    mealsCount: 3,
+    meals: createInitialMeals(3),
+    ui: {
+      libraryOpen: false,
+      theme: 'light',
+    },
+  };
 }
 
 function normalizeFood(rawFood) {
@@ -67,7 +97,7 @@ function normalizeFood(rawFood) {
     id:
       typeof rawFood.id === 'string' && rawFood.id
         ? rawFood.id
-        : `food-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        : createFoodId(),
     name,
     protein,
     carbs,
@@ -99,68 +129,153 @@ function normalizeMealFood(rawFood) {
   };
 }
 
-function loadState() {
-  const baseState = {
-    dailyCalorieGoal: 0,
-    mealsCount: 3,
-    meals: createInitialMeals(3),
-    foodLibrary: [],
-    ui: {
-      libraryOpen: false,
-      theme: 'light',
-    },
-  };
+function getFoodFingerprint(rawFood) {
+  const food = normalizeFood(rawFood);
+  if (!food) return null;
 
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return baseState;
+  return [
+    food.name.trim().toLowerCase(),
+    food.protein.toFixed(4),
+    food.carbs.toFixed(4),
+    food.fat.toFixed(4),
+  ].join('__');
+}
 
-    const parsed = JSON.parse(raw);
+function dedupeFoodLibrary(rawLibrary) {
+  const map = new Map();
 
-    const mealsCount = Math.min(12, Math.max(1, Math.round(toNumber(parsed.mealsCount) || 3)));
-    const parsedMeals = Array.isArray(parsed.meals) ? parsed.meals : [];
+  rawLibrary.forEach((rawFood) => {
+    const food = normalizeFood(rawFood);
+    if (!food) return;
 
-    const meals = createInitialMeals(mealsCount).map((defaultMeal, index) => {
-      const existing = parsedMeals[index] || {};
-      const foods = Array.isArray(existing.foods)
-        ? existing.foods.map(normalizeMealFood).filter(Boolean)
-        : [];
+    const fingerprint = getFoodFingerprint(food);
+    if (!fingerprint || map.has(fingerprint)) return;
 
-      return {
-        name:
-          typeof existing.name === 'string' && existing.name.trim()
-            ? existing.name.trim()
-            : defaultMeal.name,
-        foods,
-      };
-    });
+    map.set(fingerprint, food);
+  });
 
-    const foodLibrary = Array.isArray(parsed.foodLibrary)
-      ? parsed.foodLibrary.map(normalizeFood).filter(Boolean)
+  return [...map.values()];
+}
+
+function extractFoodLibraryFromParsed(parsed) {
+  if (!parsed || typeof parsed !== 'object') return [];
+  const library = Array.isArray(parsed.foodLibrary) ? parsed.foodLibrary : [];
+  return dedupeFoodLibrary(library);
+}
+
+function extractDayStateFromParsed(parsed) {
+  const baseState = createDefaultDayState();
+
+  if (!parsed || typeof parsed !== 'object') return baseState;
+
+  const parsedMealsInput = Array.isArray(parsed.meals) ? parsed.meals : [];
+  const parsedMealsCount = Math.round(
+    toNumber(parsed.mealsCount) || parsedMealsInput.length || baseState.mealsCount
+  );
+  const mealsCount = Math.min(12, Math.max(1, parsedMealsCount));
+
+  const meals = createInitialMeals(mealsCount).map((defaultMeal, index) => {
+    const existing = parsedMealsInput[index] || {};
+    const foods = Array.isArray(existing.foods)
+      ? existing.foods.map(normalizeMealFood).filter(Boolean)
       : [];
 
-    const parsedUi = parsed.ui || {};
-    const ui = {
+    return {
+      name:
+        typeof existing.name === 'string' && existing.name.trim()
+          ? existing.name.trim()
+          : defaultMeal.name,
+      foods,
+    };
+  });
+
+  const parsedUi = parsed.ui || {};
+
+  return {
+    dailyCalorieGoal: Math.max(0, toNumber(parsed.dailyCalorieGoal) || 0),
+    mealsCount,
+    meals,
+    ui: {
       libraryOpen: Boolean(parsedUi.libraryOpen),
       theme: parsedUi.theme === 'dark' ? 'dark' : 'light',
-    };
+    },
+  };
+}
 
-    return {
-      dailyCalorieGoal: Math.max(0, toNumber(parsed.dailyCalorieGoal) || 0),
-      mealsCount,
-      meals,
-      foodLibrary,
-      ui,
-    };
-  } catch {
-    return baseState;
+function migrateLegacyStorageIfNeeded() {
+  const hasNewLibrary = localStorage.getItem(FOOD_LIBRARY_STORAGE_KEY) !== null;
+  const hasNewDay = localStorage.getItem(DAY_STATE_STORAGE_KEY) !== null;
+
+  if (hasNewLibrary && hasNewDay) return;
+
+  const legacyRaw = localStorage.getItem(LEGACY_STORAGE_KEY);
+  if (!legacyRaw) return;
+
+  const legacyParsed = safeParseJson(legacyRaw);
+  if (!legacyParsed || typeof legacyParsed !== 'object') return;
+
+  if (!hasNewLibrary) {
+    const legacyLibrary = extractFoodLibraryFromParsed(legacyParsed);
+    localStorage.setItem(FOOD_LIBRARY_STORAGE_KEY, JSON.stringify(legacyLibrary));
+  }
+
+  if (!hasNewDay) {
+    const legacyDayState = extractDayStateFromParsed(legacyParsed);
+    localStorage.setItem(DAY_STATE_STORAGE_KEY, JSON.stringify(legacyDayState));
   }
 }
 
-let state = loadState();
+function loadFoodLibrary() {
+  const raw = localStorage.getItem(FOOD_LIBRARY_STORAGE_KEY);
+  if (!raw) return [];
 
-function saveState() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  const parsed = safeParseJson(raw);
+  if (!parsed || !Array.isArray(parsed)) return [];
+
+  return dedupeFoodLibrary(parsed);
+}
+
+function loadDayState() {
+  const raw = localStorage.getItem(DAY_STATE_STORAGE_KEY);
+  if (!raw) return createDefaultDayState();
+
+  const parsed = safeParseJson(raw);
+  return extractDayStateFromParsed(parsed);
+}
+
+function saveFoodLibrary() {
+  const uniqueLibrary = dedupeFoodLibrary(state.foodLibrary);
+  state.foodLibrary = uniqueLibrary;
+  localStorage.setItem(FOOD_LIBRARY_STORAGE_KEY, JSON.stringify(uniqueLibrary));
+}
+
+function saveDayState() {
+  const dayState = {
+    dailyCalorieGoal: state.dailyCalorieGoal,
+    mealsCount: state.mealsCount,
+    meals: state.meals,
+    ui: state.ui,
+  };
+
+  localStorage.setItem(DAY_STATE_STORAGE_KEY, JSON.stringify(dayState));
+}
+
+function showLibraryStatus(message, tone = 'info') {
+  if (!libraryFields.statusMessage) return;
+  libraryFields.statusMessage.textContent = message;
+  libraryFields.statusMessage.dataset.tone = tone;
+}
+
+function readLibraryFromImportPayload(parsed) {
+  if (Array.isArray(parsed)) return parsed;
+
+  if (parsed && typeof parsed === 'object') {
+    if (Array.isArray(parsed.foodLibrary)) return parsed.foodLibrary;
+    if (Array.isArray(parsed.library)) return parsed.library;
+    if (Array.isArray(parsed.foods)) return parsed.foods;
+  }
+
+  return null;
 }
 
 function applyTheme() {
@@ -171,6 +286,7 @@ function applyTheme() {
 
 function updateLibraryVisibility() {
   if (!uiFields.librarySection || !uiFields.libraryToggle) return;
+
   uiFields.librarySection.classList.toggle('hidden', !state.ui.libraryOpen);
   uiFields.libraryToggle.textContent = state.ui.libraryOpen
     ? 'Ocultar biblioteca de alimentos'
@@ -179,6 +295,7 @@ function updateLibraryVisibility() {
 
 function getFoodTotals(food) {
   const factor = food.consumedGrams / 100;
+
   return {
     protein: food.protein * factor,
     carbs: food.carbs * factor,
@@ -191,6 +308,7 @@ function getMealTotals(meal) {
   return meal.foods.reduce(
     (acc, food) => {
       const item = getFoodTotals(food);
+
       return {
         protein: acc.protein + item.protein,
         carbs: acc.carbs + item.carbs,
@@ -206,6 +324,7 @@ function getDayTotals() {
   return state.meals.reduce(
     (acc, meal) => {
       const subtotal = getMealTotals(meal);
+
       return {
         protein: acc.protein + subtotal.protein,
         carbs: acc.carbs + subtotal.carbs,
@@ -343,18 +462,16 @@ function render() {
 
 function updateMealCount(nextCount) {
   const normalized = Math.min(12, Math.max(1, Math.round(nextCount)));
+
   const nextMeals = createInitialMeals(normalized).map((meal, index) => {
     if (state.meals[index]) return state.meals[index];
     return meal;
   });
 
-  state = {
-    ...state,
-    mealsCount: normalized,
-    meals: nextMeals,
-  };
+  state.mealsCount = normalized;
+  state.meals = nextMeals;
 
-  saveState();
+  saveDayState();
   render();
 }
 
@@ -404,7 +521,7 @@ function bindMealEvents() {
         consumedGrams,
       });
 
-      saveState();
+      saveDayState();
       render();
     });
   });
@@ -421,7 +538,7 @@ function bindMealEvents() {
       if (!state.meals[mealIndex].foods[foodIndex]) return;
 
       state.meals[mealIndex].foods.splice(foodIndex, 1);
-      saveState();
+      saveDayState();
       render();
     });
   });
@@ -437,7 +554,114 @@ function updateLibraryCaloriesPreview() {
   );
 }
 
+function exportFoodLibrary() {
+  if (!state.foodLibrary.length) {
+    showLibraryStatus('No hay alimentos para exportar.', 'warning');
+    return;
+  }
+
+  const exportData = state.foodLibrary.map(({ id, name, protein, carbs, fat, caloriesPer100 }) => ({
+    id,
+    name,
+    protein,
+    carbs,
+    fat,
+    caloriesPer100,
+  }));
+
+  const blob = new Blob([JSON.stringify(exportData, null, 2)], {
+    type: 'application/json',
+  });
+
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+
+  link.href = url;
+  link.download = 'macroPlanner-food-library.json';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+
+  showLibraryStatus(`Se exportaron ${exportData.length} alimentos.`, 'success');
+}
+
+function handleImportFile(file) {
+  if (!file) return;
+
+  const reader = new FileReader();
+
+  reader.onload = () => {
+    const parsed = safeParseJson(String(reader.result || ''));
+
+    if (!parsed) {
+      showLibraryStatus('El archivo no contiene un JSON válido.', 'error');
+      return;
+    }
+
+    const importedRaw = readLibraryFromImportPayload(parsed);
+
+    if (!Array.isArray(importedRaw)) {
+      showLibraryStatus(
+        'El JSON debe ser un array o contener foodLibrary, library o foods.',
+        'error'
+      );
+      return;
+    }
+
+    const importedNormalized = dedupeFoodLibrary(importedRaw);
+
+    if (!importedNormalized.length) {
+      showLibraryStatus('No se encontraron alimentos válidos para importar.', 'warning');
+      return;
+    }
+
+    const replace = confirm(
+      '¿Deseas reemplazar la biblioteca actual?\nAceptar = Reemplazar\nCancelar = Combinar sin duplicados'
+    );
+
+    if (replace) {
+      const confirmReplace = confirm(
+        `Se reemplazará tu biblioteca actual con ${importedNormalized.length} alimentos. ¿Continuar?`
+      );
+
+      if (!confirmReplace) {
+        showLibraryStatus('Importación cancelada por el usuario.', 'warning');
+        return;
+      }
+
+      state.foodLibrary = importedNormalized;
+      saveFoodLibrary();
+      render();
+      showLibraryStatus(
+        `Biblioteca reemplazada con ${state.foodLibrary.length} alimentos.`,
+        'success'
+      );
+      return;
+    }
+
+    const previousCount = state.foodLibrary.length;
+    state.foodLibrary = dedupeFoodLibrary([...state.foodLibrary, ...importedNormalized]);
+    const addedCount = state.foodLibrary.length - previousCount;
+
+    saveFoodLibrary();
+    render();
+    showLibraryStatus(
+      `Biblioteca combinada. Se agregaron ${Math.max(0, addedCount)} alimentos nuevos. Total: ${state.foodLibrary.length}.`,
+      'success'
+    );
+  };
+
+  reader.onerror = () => {
+    showLibraryStatus('No se pudo leer el archivo seleccionado.', 'error');
+  };
+
+  reader.readAsText(file);
+}
+
 function bindLibraryEvents() {
+  if (!libraryFields.form) return;
+
   ['input', 'change'].forEach((eventName) => {
     libraryFields.protein.addEventListener(eventName, updateLibraryCaloriesPreview);
     libraryFields.carbs.addEventListener(eventName, updateLibraryCaloriesPreview);
@@ -467,29 +691,59 @@ function bindLibraryEvents() {
       return;
     }
 
-    state.foodLibrary.push({
-      id: `food-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    const candidate = normalizeFood({
+      id: createFoodId(),
       name: foodName,
       protein,
       carbs,
       fat,
-      caloriesPer100: calculateCaloriesPer100(protein, carbs, fat),
     });
+
+    if (!candidate) {
+      libraryFields.error.textContent = 'No se pudo guardar el alimento.';
+      return;
+    }
+
+    const previousCount = state.foodLibrary.length;
+    state.foodLibrary = dedupeFoodLibrary([...state.foodLibrary, candidate]);
 
     libraryFields.form.reset();
     libraryFields.error.textContent = '';
     updateLibraryCaloriesPreview();
 
-    saveState();
+    saveFoodLibrary();
     render();
+
+    if (state.foodLibrary.length === previousCount) {
+      showLibraryStatus('Ese alimento ya existía en la biblioteca.', 'warning');
+      return;
+    }
+
+    showLibraryStatus('Alimento guardado en la biblioteca.', 'success');
   });
+
+  if (libraryFields.exportButton) {
+    libraryFields.exportButton.addEventListener('click', exportFoodLibrary);
+  }
+
+  if (libraryFields.importButton && libraryFields.importInput) {
+    libraryFields.importButton.addEventListener('click', () => {
+      libraryFields.importInput.value = '';
+      libraryFields.importInput.click();
+    });
+
+    libraryFields.importInput.addEventListener('change', () => {
+      const [file] = libraryFields.importInput.files || [];
+      handleImportFile(file);
+    });
+  }
 }
 
 function bindUiEvents() {
   if (uiFields.themeToggle) {
     uiFields.themeToggle.addEventListener('click', () => {
       state.ui.theme = state.ui.theme === 'dark' ? 'light' : 'dark';
-      saveState();
+      saveDayState();
       applyTheme();
     });
   }
@@ -497,7 +751,7 @@ function bindUiEvents() {
   if (uiFields.libraryToggle) {
     uiFields.libraryToggle.addEventListener('click', () => {
       state.ui.libraryOpen = !state.ui.libraryOpen;
-      saveState();
+      saveDayState();
       updateLibraryVisibility();
     });
   }
@@ -508,15 +762,23 @@ function bindUiEvents() {
         ...meal,
         foods: [],
       }));
-      saveState();
+      saveDayState();
       render();
     });
   }
 }
 
+migrateLegacyStorageIfNeeded();
+
+const dayState = loadDayState();
+let state = {
+  ...dayState,
+  foodLibrary: loadFoodLibrary(),
+};
+
 fields.dailyCalorieGoal.addEventListener('input', () => {
   state.dailyCalorieGoal = Math.max(0, toNumber(fields.dailyCalorieGoal.value) || 0);
-  saveState();
+  saveDayState();
   renderSummary();
 });
 

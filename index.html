@@ -112,6 +112,23 @@
           <button type="submit" class="primary">Guardar alimento</button>
         </form>
 
+        <div class="library-actions">
+          <button id="libraryExportButton" type="button" class="secondary">
+            Exportar biblioteca
+          </button>
+          <button id="libraryImportButton" type="button" class="secondary">
+            Importar biblioteca
+          </button>
+          <input
+            id="libraryImportInput"
+            type="file"
+            accept=".json,application/json"
+            class="hidden"
+          />
+        </div>
+
+        <p id="libraryStatusMessage" class="status-message" aria-live="polite"></p>
+
         <div>
           <h3 class="subheading">Mis alimentos guardados</h3>
           <ul id="foodLibraryList" class="food-list"></ul>

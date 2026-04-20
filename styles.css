@@ -91,6 +91,31 @@ h2 {
   font-size: 0.92rem;
 }
 
+.library-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.status-message {
+  margin: 0;
+  min-height: 1rem;
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.status-message[data-tone='success'] {
+  color: #1f8b4c;
+}
+
+.status-message[data-tone='warning'] {
+  color: #ad7600;
+}
+
+.status-message[data-tone='error'] {
+  color: var(--error);
+}
+
 label {
   display: grid;
   gap: 6px;
