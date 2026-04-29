@@ -206,6 +206,18 @@ select:focus {
   font-weight: 700;
 }
 
+.summary-extra {
+  margin-top: 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.summary-extra-meta {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
 .meals {
   display: grid;
   gap: 12px;
