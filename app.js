@@ -396,12 +396,14 @@ function updateModalVisibility() {
     uiFields.libraryToggle.textContent = isLibraryOpen
       ? 'Cerrar biblioteca de alimentos'
       : 'Abrir biblioteca de alimentos';
+    uiFields.libraryToggle.setAttribute('aria-expanded', String(isLibraryOpen));
   }
 
   if (uiFields.progressToggle) {
     uiFields.progressToggle.textContent = isProgressOpen
       ? 'Cerrar registro diario'
       : 'Abrir registro diario';
+    uiFields.progressToggle.setAttribute('aria-expanded', String(isProgressOpen));
   }
 
   document.body.classList.toggle('modal-open', isLibraryOpen || isProgressOpen);
@@ -1024,7 +1026,7 @@ function exportFoodLibrary() {
     type: 'application/json',
   });
 
-  const url = URL const url = URL.createObjectURL(blob);
+  const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
 
   link.href = url;
@@ -1421,31 +1423,37 @@ function bindProgressEvents() {
   }
 }
 
-function openModal(modalName) {
-  state.ui.libraryOpen = modalName === 'library';
-  state.ui.progressOpen = modalName === 'progress';
+const MODAL_KEYS = ['library', 'progress'];
+
+function isSupportedModal(modalName) {
+  return MODAL_KEYS.includes(modalName);
+}
+
+function setModalState(modalName, isOpen) {
+  if (!isSupportedModal(modalName)) return;
+
+  state.ui.libraryOpen = false;
+  state.ui.progressOpen = false;
+
+  if (isOpen) {
+    if (modalName === 'library') state.ui.libraryOpen = true;
+    if (modalName === 'progress') state.ui.progressOpen = true;
+  }
+
   saveDayState();
   updateModalVisibility();
+}
+
+function openModal(modalName) {
+  setModalState(modalName, true);
 }
 
 function closeModal(modalName) {
-  if (modalName === 'library') {
-    state.ui.libraryOpen = false;
-  }
-
-  if (modalName === 'progress') {
-    state.ui.progressOpen = false;
-  }
-
-  saveDayState();
-  updateModalVisibility();
+  setModalState(modalName, false);
 }
 
 function closeAllModals() {
-  state.ui.libraryOpen = false;
-  state.ui.progressOpen = false;
-  saveDayState();
-  updateModalVisibility();
+  setModalState('library', false);
 }
 
 function bindUiEvents() {
@@ -1460,25 +1468,13 @@ function bindUiEvents() {
 
   if (uiFields.libraryToggle) {
     uiFields.libraryToggle.addEventListener('click', () => {
-      const willOpen = !state.ui.libraryOpen;
-      if (willOpen) {
-        openModal('library');
-        return;
-      }
-
-      closeModal('library');
+      setModalState('library', !state.ui.libraryOpen);
     });
   }
 
   if (uiFields.progressToggle) {
     uiFields.progressToggle.addEventListener('click', () => {
-      const willOpen = !state.ui.progressOpen;
-      if (willOpen) {
-        openModal('progress');
-        return;
-      }
-
-      closeModal('progress');
+      setModalState('progress', !state.ui.progressOpen);
     });
   }
 
