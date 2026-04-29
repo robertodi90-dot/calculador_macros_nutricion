@@ -33,6 +33,10 @@ body {
   color: var(--text);
 }
 
+body.modal-open {
+  overflow: hidden;
+}
+
 .app {
   width: min(100%, 1480px);
   margin: 0 auto;
@@ -273,6 +277,49 @@ select:focus {
   display: none;
 }
 
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: color-mix(in srgb, #000 55%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px;
+  z-index: 1000;
+}
+
+.modal-window {
+  width: min(1100px, 100%);
+  max-height: calc(100vh - 28px);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--card);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.modal-close {
+  min-height: 36px;
+}
+
+.modal-section {
+  border: 0;
+  border-radius: 0;
+  padding: 14px;
+  overflow: auto;
+  max-height: calc(100vh - 100px);
+}
+
 .readonly-label {
   margin: 0;
   color: var(--muted);
@@ -316,6 +363,23 @@ select:focus {
   margin: 4px 0 0;
   font-size: 0.92rem;
   color: var(--muted);
+}
+
+@media (max-width: 767px) {
+  .modal-overlay {
+    padding: 0;
+  }
+
+  .modal-window {
+    width: 100%;
+    max-height: 100vh;
+    height: 100vh;
+    border-radius: 0;
+  }
+
+  .modal-section {
+    max-height: none;
+  }
 }
 
 .empty {

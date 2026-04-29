@@ -46,11 +46,24 @@
       <section class="desktop-split" aria-label="Biblioteca y registro diario">
         <div class="left-column">
           <button id="libraryToggle" type="button" class="secondary">
-            Mostrar biblioteca de alimentos
+            Abrir biblioteca de alimentos
           </button>
+        </div>
 
-          <section id="librarySection" class="card hidden" aria-labelledby="food-library-title">
+        <div class="right-column">
+          <button id="progressToggle" type="button" class="secondary">
+            Abrir registro diario
+          </button>
+        </div>
+      </section>
+
+      <div id="libraryModal" class="modal-overlay hidden" aria-hidden="true">
+        <div class="modal-window" role="dialog" aria-modal="true" aria-labelledby="food-library-title">
+          <header class="modal-header">
             <h2 id="food-library-title">Biblioteca de alimentos</h2>
+            <button id="libraryModalClose" type="button" class="secondary modal-close">Cerrar</button>
+          </header>
+          <section id="librarySection" class="card modal-section" aria-labelledby="food-library-title">
             <p class="section-help">
               Guarda tus alimentos base y luego úsalos como ingredientes en cada comida.
             </p>
@@ -137,14 +150,15 @@
             </div>
           </section>
         </div>
+      </div>
 
-        <div class="right-column">
-          <button id="progressToggle" type="button" class="secondary">
-            Ocultar registro diario
-          </button>
-
-          <section id="progressSection" class="card" aria-labelledby="progress-log-title">
+      <div id="progressModal" class="modal-overlay hidden" aria-hidden="true">
+        <div class="modal-window" role="dialog" aria-modal="true" aria-labelledby="progress-log-title">
+          <header class="modal-header">
             <h2 id="progress-log-title">Registro diario</h2>
+            <button id="progressModalClose" type="button" class="secondary modal-close">Cerrar</button>
+          </header>
+          <section id="progressSection" class="card modal-section" aria-labelledby="progress-log-title">
             <p class="section-help">Registra tu evolución diaria y visualízala en gráficos.</p>
 
             <form id="progressLogForm" class="add-food-form" novalidate>
@@ -233,7 +247,7 @@
             </div>
           </section>
         </div>
-      </section>
+      </div>
 
       <section class="card" aria-labelledby="daily-summary-title">
         <div class="section-header">
