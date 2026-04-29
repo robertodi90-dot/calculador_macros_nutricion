@@ -47,6 +47,8 @@ const progressFields = {
   status: document.getElementById('progressStatusMessage'),
   list: document.getElementById('progressLogList'),
   exportCsv: document.getElementById('exportProgressCsvButton'),
+  importButton: document.getElementById('importProgressButton'),
+  importInput: document.getElementById('progressImportInput'),
   charts: {
     weight: document.getElementById('weightChart'),
     bodyFat: document.getElementById('bodyFatChart'),
@@ -263,14 +265,16 @@ function extractDayStateFromParsed(parsed) {
   );
   const mealsCount = Math.min(12, Math.max(1, parsedMealsCount));
   const parsedUi = parsed.ui || {};
+  const libraryOpen = Boolean(parsedUi.libraryOpen);
+  const progressOpen = Boolean(parsedUi.progressOpen);
 
   return {
     dailyCalorieGoal: Math.max(0, toNumber(parsed.dailyCalorieGoal) || 0),
     mealsCount,
     meals: normalizeMeals(parsed.meals, mealsCount),
     ui: {
-      libraryOpen,
-      progressOpen: libraryOpen ? false : progressOpen,
+      libraryOpen: false,
+      progressOpen: false,
       theme: parsedUi.theme === 'dark' ? 'dark' : 'light',
     },
   };
@@ -1143,6 +1147,137 @@ function exportProgressCsv() {
   showProgressStatus(`Se exportaron ${rows.length} registros en CSV.`, 'success');
 }
 
+
+function normalizeCsvHeader(value) {
+  return String(value || '')
+    .trim()
+    .replace(/^﻿/, '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '');
+}
+
+function parseCsvLine(line, separator) {
+  const cells = [];
+  let current = '';
+  let inQuotes = false;
+
+  for (let index = 0; index < line.length; index += 1) {
+    const char = line[index];
+
+    if (char === '"') {
+      if (inQuotes && line[index + 1] === '"') {
+        current += '"';
+        index += 1;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
+
+    if (char === separator && !inQuotes) {
+      cells.push(current.trim());
+      current = '';
+      continue;
+    }
+
+    current += char;
+  }
+
+  cells.push(current.trim());
+  return cells;
+}
+
+function importProgressRecords(file) {
+  if (!file) return;
+
+  const reader = new FileReader();
+
+  reader.onload = () => {
+    const rawText = String(reader.result || '').replace(/^\ufeff/, '');
+    const lines = rawText.split(/\r?\n/).filter((line) => line.trim());
+
+    if (lines.length < 2) {
+      showProgressStatus('El archivo debe incluir encabezados y al menos un registro.', 'error');
+      return;
+    }
+
+    const separator = lines[0].includes(';') ? ';' : ',';
+    const headers = parseCsvLine(lines[0], separator).map(normalizeCsvHeader);
+
+    const expectedHeaders = ['fecha', 'peso', 'grasa corporal %', 'calorias teoricas'];
+    const hasExpectedHeaders = expectedHeaders.every((header, index) => headers[index] === header);
+
+    if (!hasExpectedHeaders) {
+      showProgressStatus('Encabezados inválidos. Usa: Fecha;Peso;Grasa corporal %;Calorías teóricas.', 'error');
+      return;
+    }
+
+    const imported = [];
+
+    for (let index = 1; index < lines.length; index += 1) {
+      const cells = parseCsvLine(lines[index], separator);
+      if (cells.length < 4) continue;
+
+      const entry = normalizeProgressLogEntry({
+        id: createLogId(),
+        date: cells[0],
+        weight: cells[1],
+        bodyFat: cells[2],
+        calories: cells[3],
+      });
+
+      if (!entry) {
+        showProgressStatus(`Fila ${index + 1} inválida. Revisa fecha, peso, grasa y calorías.`, 'error');
+        return;
+      }
+
+      imported.push(entry);
+    }
+
+    if (!imported.length) {
+      showProgressStatus('No se encontraron registros válidos para importar.', 'warning');
+      return;
+    }
+
+    const replace = confirm(
+      '¿Deseas reemplazar los registros actuales?\nAceptar = Reemplazar\nCancelar = Combinar sin duplicados'
+    );
+
+    if (replace) {
+      state.progressLog = sortProgressLogDesc(imported);
+      saveProgressLog();
+      renderProgressLog();
+      showProgressStatus(`Se importaron ${state.progressLog.length} registros (reemplazo completo).`, 'success');
+      return;
+    }
+
+    const existingFingerprints = new Set(
+      state.progressLog.map((entry) => [entry.date, entry.weight, entry.bodyFat, entry.calories].join('__'))
+    );
+
+    let addedCount = 0;
+    imported.forEach((entry) => {
+      const fingerprint = [entry.date, entry.weight, entry.bodyFat, entry.calories].join('__');
+      if (existingFingerprints.has(fingerprint)) return;
+      existingFingerprints.add(fingerprint);
+      state.progressLog.push(entry);
+      addedCount += 1;
+    });
+
+    state.progressLog = sortProgressLogDesc(state.progressLog);
+    saveProgressLog();
+    renderProgressLog();
+    showProgressStatus(`Importación completada. ${addedCount} nuevos, total ${state.progressLog.length}.`, 'success');
+  };
+
+  reader.onerror = () => {
+    showProgressStatus('No se pudo leer el archivo de registros.', 'error');
+  };
+
+  reader.readAsText(file);
+}
+
 function bindLibraryEvents() {
   if (!libraryFields.form) return;
 
@@ -1260,6 +1395,25 @@ function bindProgressEvents() {
   if (progressFields.exportCsv) {
     progressFields.exportCsv.addEventListener('click', exportProgressCsv);
   }
+
+  if (progressFields.importButton && progressFields.importInput) {
+    progressFields.importButton.addEventListener('click', () => {
+      progressFields.importInput.value = '';
+      progressFields.importInput.click();
+    });
+
+    progressFields.importInput.addEventListener('change', () => {
+      const [file] = progressFields.importInput.files || [];
+      importProgressRecords(file);
+    });
+  }
+}
+
+function closeAllModals() {
+  state.ui.libraryOpen = false;
+  state.ui.progressOpen = false;
+  saveDayState();
+  updateModalVisibility();
 }
 
 function bindUiEvents() {
@@ -1292,39 +1446,24 @@ function bindUiEvents() {
     });
   }
 
-  uiFields.libraryModalClose?.addEventListener('click', () => {
-    state.ui.libraryOpen = false;
-    saveDayState();
-    updateModalVisibility();
-  });
+  uiFields.libraryModalClose?.addEventListener('click', closeAllModals);
 
-  uiFields.progressModalClose?.addEventListener('click', () => {
-    state.ui.progressOpen = false;
-    saveDayState();
-    updateModalVisibility();
-  });
+  uiFields.progressModalClose?.addEventListener('click', closeAllModals);
 
   uiFields.libraryModal?.addEventListener('click', (event) => {
     if (event.target !== uiFields.libraryModal) return;
-    state.ui.libraryOpen = false;
-    saveDayState();
-    updateModalVisibility();
+    closeAllModals();
   });
 
   uiFields.progressModal?.addEventListener('click', (event) => {
     if (event.target !== uiFields.progressModal) return;
-    state.ui.progressOpen = false;
-    saveDayState();
-    updateModalVisibility();
+    closeAllModals();
   });
 
   document.addEventListener('keydown', (event) => {
     if (event.key !== 'Escape') return;
     if (!state.ui.libraryOpen && !state.ui.progressOpen) return;
-    state.ui.libraryOpen = false;
-    state.ui.progressOpen = false;
-    saveDayState();
-    updateModalVisibility();
+    closeAllModals();
   });
 
   if (uiFields.resetDayButton) {
