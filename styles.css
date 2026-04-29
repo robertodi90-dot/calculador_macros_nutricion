@@ -228,6 +228,13 @@ select:focus {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  flex-wrap: wrap;
+}
+
+.meal-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 
 .primary,
@@ -470,6 +477,10 @@ select:focus {
   border-top: 2px solid #111827;
   padding-top: 10px;
   font-weight: 700;
+}
+
+body.export-window {
+  background: #ffffff;
 }
 
 body.printing-menu .app {

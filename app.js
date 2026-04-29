@@ -17,6 +17,7 @@ const uiFields = {
   progressModal: document.getElementById('progressModal'),
   progressModalClose: document.getElementById('progressModalClose'),
   printMenuButton: document.getElementById('printMenuButton'),
+  exportDailyMenuButton: document.getElementById('exportDailyMenuButton'),
   resetDayButton: document.getElementById('resetDayButton'),
 };
 
@@ -521,6 +522,105 @@ function buildPrintableMenuHtml() {
   `;
 }
 
+function buildExportableMenuBlock(title, meals, { includeDaySummary = false } = {}) {
+  const mealsWithFoods = meals.filter((meal) => Array.isArray(meal.foods) && meal.foods.length > 0);
+  if (!mealsWithFoods.length) return null;
+
+  const mealsHtml = mealsWithFoods
+    .map((meal) => {
+      const mealTotals = getMealTotals(meal);
+      const ingredientsHtml = meal.foods
+        .map(
+          (food) => `
+            <li>
+              <span>${escapeHtml(food.name)}</span>
+              <strong>${food.consumedGrams.toFixed(1)} g</strong>
+            </li>
+          `
+        )
+        .join('');
+
+      return `
+        <section class="print-meal">
+          <h2>${escapeHtml(meal.name)}</h2>
+          <ul class="print-ingredients">${ingredientsHtml}</ul>
+          <p class="print-meal-subtotal">
+            Subtotal: P ${mealTotals.protein.toFixed(1)} g · C ${mealTotals.carbs.toFixed(1)} g · G ${mealTotals.fat.toFixed(1)} g · ${Math.round(mealTotals.calories)} kcal
+          </p>
+        </section>
+      `;
+    })
+    .join('');
+
+  const dayTotals = getDayTotals();
+  const summaryHtml = includeDaySummary
+    ? `
+      <section class="print-daily-summary">
+        Resumen diario: P ${dayTotals.protein.toFixed(1)} g · C ${dayTotals.carbs.toFixed(1)} g · G ${dayTotals.fat.toFixed(1)} g · ${Math.round(dayTotals.calories)} kcal
+      </section>
+    `
+    : '';
+
+  return `
+    <div class="print-menu-page">
+      <h1>${escapeHtml(title)}</h1>
+      <p class="print-date">Fecha: ${escapeHtml(getPrintableDate())}</p>
+      ${mealsHtml}
+      ${summaryHtml}
+    </div>
+  `;
+}
+
+function openExportWindow(contentHtml) {
+  if (!contentHtml) return;
+
+  const exportWindow = window.open('', '_blank', 'noopener,noreferrer,width=900,height=800');
+  if (!exportWindow) {
+    alert('No se pudo abrir la ventana de exportación. Revisa si el navegador bloqueó pop-ups.');
+    return;
+  }
+
+  exportWindow.document.write(`
+    <!doctype html>
+    <html lang="es">
+      <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width,initial-scale=1" />
+        <title>Exportación de menú</title>
+        <link rel="stylesheet" href="styles.css" />
+      </head>
+      <body class="export-window">
+        ${contentHtml}
+      </body>
+    </html>
+  `);
+  exportWindow.document.close();
+  exportWindow.focus();
+  setTimeout(() => exportWindow.print(), 80);
+}
+
+function exportDailyMenu() {
+  const html = buildExportableMenuBlock('Menú diario de comidas', state.meals, {
+    includeDaySummary: true,
+  });
+  if (!html) {
+    alert('No hay comidas con ingredientes para exportar el menú diario.');
+    return;
+  }
+  openExportWindow(html);
+}
+
+function exportSingleMeal(mealIndex) {
+  if (!Number.isInteger(mealIndex) || !state.meals[mealIndex]) return;
+  const meal = state.meals[mealIndex];
+  const html = buildExportableMenuBlock(`Comida: ${meal.name}`, [meal]);
+  if (!html) {
+    alert('Esta comida no tiene ingredientes para exportar.');
+    return;
+  }
+  openExportWindow(html);
+}
+
 function cleanupPrintMode() {
   isPrintModeActive = false;
   document.body.classList.remove('printing-menu');
@@ -838,9 +938,14 @@ function renderMeals() {
         <section class="card meal-card" data-meal-index="${mealIndex}">
           <div class="meal-header">
             <h2>${meal.name}</h2>
-            <button type="button" class="primary add-food-toggle" ${state.foodLibrary.length ? '' : 'disabled'}>
-              Agregar ingrediente
-            </button>
+            <div class="meal-actions">
+              <button type="button" class="secondary export-meal-button" data-meal-index="${mealIndex}">
+                Exportar comida
+              </button>
+              <button type="button" class="primary add-food-toggle" ${state.foodLibrary.length ? '' : 'disabled'}>
+                Agregar ingrediente
+              </button>
+            </div>
           </div>
 
           ${ingredientFormHtml}
@@ -957,6 +1062,14 @@ function bindMealEvents() {
       state.meals[mealIndex].foods.splice(foodIndex, 1);
       saveDayState();
       render();
+    });
+  });
+
+  const exportMealButtons = mealsContainer.querySelectorAll('.export-meal-button');
+  exportMealButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      const mealIndex = Number(button.dataset.mealIndex);
+      exportSingleMeal(mealIndex);
     });
   });
 }
@@ -1533,6 +1646,10 @@ function bindUiEvents() {
 
   if (uiFields.printMenuButton) {
     uiFields.printMenuButton.addEventListener('click', openPrintableMenu);
+  }
+
+  if (uiFields.exportDailyMenuButton) {
+    uiFields.exportDailyMenuButton.addEventListener('click', exportDailyMenu);
   }
 
   window.addEventListener('resize', () => {
