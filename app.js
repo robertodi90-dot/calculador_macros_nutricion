@@ -66,6 +66,10 @@ const summary = {
   calories: document.getElementById('dailyCalories'),
   goal: document.getElementById('dailyGoal'),
   remaining: document.getElementById('dailyRemaining'),
+  proteinPerKg: document.getElementById('dailyProteinPerKg'),
+  carbsPerKg: document.getElementById('dailyCarbsPerKg'),
+  fatPerKg: document.getElementById('dailyFatPerKg'),
+  weightUsed: document.getElementById('dailyKgWeight'),
 };
 
 const mealsContainer = document.getElementById('mealsContainer');
@@ -549,6 +553,8 @@ function openPrintableMenu() {
 function renderSummary() {
   const totals = getDayTotals();
   const remaining = state.dailyCalorieGoal - totals.calories;
+  const latestWeight = getLatestProgressWeight();
+  const hasValidWeight = latestWeight !== null && latestWeight > 0;
 
   summary.protein.textContent = totals.protein.toFixed(1);
   summary.carbs.textContent = totals.carbs.toFixed(1);
@@ -556,6 +562,18 @@ function renderSummary() {
   summary.calories.textContent = String(Math.round(totals.calories));
   summary.goal.textContent = String(Math.round(state.dailyCalorieGoal));
   summary.remaining.textContent = String(Math.round(remaining));
+
+  summary.weightUsed.textContent = hasValidWeight ? `${latestWeight.toFixed(1)} kg` : 'Sin peso registrado';
+  summary.proteinPerKg.textContent = hasValidWeight ? (totals.protein / latestWeight).toFixed(2) : '--';
+  summary.carbsPerKg.textContent = hasValidWeight ? (totals.carbs / latestWeight).toFixed(2) : '--';
+  summary.fatPerKg.textContent = hasValidWeight ? (totals.fat / latestWeight).toFixed(2) : '--';
+}
+
+function getLatestProgressWeight() {
+  if (!Array.isArray(state.progressLog) || !state.progressLog.length) return null;
+  const sorted = sortProgressLogDesc(state.progressLog);
+  const latestEntry = sorted.find((entry) => typeof entry.weight === 'number' && entry.weight > 0);
+  return latestEntry ? latestEntry.weight : null;
 }
 
 function renderFoodLibrary() {
