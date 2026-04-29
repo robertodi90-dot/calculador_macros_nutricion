@@ -416,6 +416,17 @@ function updateModalVisibility() {
   document.body.classList.toggle('modal-open', isLibraryOpen || isProgressOpen);
 }
 
+function isElementVisible(element) {
+  if (!element || !element.isConnected) return false;
+  if (element.hidden) return false;
+
+  const style = window.getComputedStyle(element);
+  if (style.display === 'none' || style.visibility === 'hidden') return false;
+
+  const rect = element.getBoundingClientRect();
+  return rect.width > 0 && rect.height > 0;
+}
+
 function getFoodTotals(food) {
   const factor = food.consumedGrams / 100;
 
@@ -868,6 +879,7 @@ function resizeCanvasToDisplaySize(canvas) {
 
   const ratio = window.devicePixelRatio || 1;
   const rect = canvas.getBoundingClientRect();
+  if (rect.width <= 0 || rect.height <= 0) return;
   const width = Math.max(1, Math.round(rect.width * ratio));
   const height = Math.max(1, Math.round(rect.height * ratio));
 
@@ -966,6 +978,10 @@ function drawLineChart(canvas, emptyEl, points, label) {
 
 function renderProgressCharts() {
   if (!progressFields.charts.weight) return;
+  if (!state.ui.progressOpen) return;
+
+  const progressModal = uiFields.progressModal;
+  if (!isElementVisible(progressModal) || !isElementVisible(progressFields.charts.weight)) return;
 
   const chartData = [...state.progressLog]
     .sort((a, b) => a.date.localeCompare(b.date))
@@ -1722,6 +1738,12 @@ function setModalState(modalName, isOpen) {
 
 function openModal(modalName) {
   setModalState(modalName, true);
+
+  if (modalName === 'progress') {
+    requestAnimationFrame(() => {
+      renderProgressCharts();
+    });
+  }
 }
 
 function closeModal(modalName) {
