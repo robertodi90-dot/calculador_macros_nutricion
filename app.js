@@ -18,6 +18,8 @@ const uiFields = {
   progressModalClose: document.getElementById('progressModalClose'),
   printMenuButton: document.getElementById('printMenuButton'),
   exportDailyMenuButton: document.getElementById('exportDailyMenuButton'),
+  importDailyMenuButton: document.getElementById('importDailyMenuButton'),
+  importDailyMenuInput: document.getElementById('importDailyMenuInput'),
   resetDayButton: document.getElementById('resetDayButton'),
 };
 
@@ -600,25 +602,144 @@ function openExportWindow(contentHtml) {
 }
 
 function exportDailyMenu() {
-  const html = buildExportableMenuBlock('Menú diario de comidas', state.meals, {
-    includeDaySummary: true,
-  });
-  if (!html) {
+  const payload = serializeDailyMenu(state);
+  if (!payload.meals.length) {
     alert('No hay comidas con ingredientes para exportar el menú diario.');
     return;
   }
-  openExportWindow(html);
+  downloadJsonFile(payload, `menu-diario-${getTodayIsoDate()}.json`);
 }
 
 function exportSingleMeal(mealIndex) {
   if (!Number.isInteger(mealIndex) || !state.meals[mealIndex]) return;
-  const meal = state.meals[mealIndex];
-  const html = buildExportableMenuBlock(`Comida: ${meal.name}`, [meal]);
-  if (!html) {
+  const payload = serializeMeal(state.meals[mealIndex]);
+  if (!payload.foods.length) {
     alert('Esta comida no tiene ingredientes para exportar.');
     return;
   }
-  openExportWindow(html);
+  downloadJsonFile(payload, `comida-${mealIndex + 1}.json`);
+}
+
+function getTodayIsoDate() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function serializeMealFood(food) {
+  return {
+    sourceFoodId: typeof food.sourceFoodId === 'string' ? food.sourceFoodId : null,
+    name: food.name,
+    protein: food.protein,
+    carbs: food.carbs,
+    fat: food.fat,
+    caloriesPer100: food.caloriesPer100 ?? calculateCaloriesPer100(food.protein, food.carbs, food.fat),
+    consumedGrams: food.consumedGrams,
+  };
+}
+
+function serializeMeal(meal) {
+  return { version: 1, exportedAt: new Date().toISOString(), name: meal.name, foods: meal.foods.map(serializeMealFood) };
+}
+
+function serializeDailyMenu(dayState) {
+  return {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    dailyCalorieGoal: dayState.dailyCalorieGoal,
+    mealsCount: dayState.mealsCount,
+    meals: dayState.meals.map((meal) => ({ name: meal.name, foods: meal.foods.map(serializeMealFood) })),
+  };
+}
+
+function downloadJsonFile(payload, filename) {
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function validateMealImportPayload(parsed) {
+  if (!parsed || typeof parsed !== 'object') return { valid: false, error: 'El archivo no contiene un objeto JSON válido.' };
+  if (toNumber(parsed.version) === null) return { valid: false, error: 'Falta el campo "version".' };
+  if (typeof parsed.exportedAt !== 'string' || !parsed.exportedAt.trim()) return { valid: false, error: 'Falta el campo "exportedAt".' };
+  if (typeof parsed.name !== 'string' || !parsed.name.trim()) return { valid: false, error: 'Falta el nombre de la comida.' };
+  if (!Array.isArray(parsed.foods)) return { valid: false, error: 'Falta el campo "foods" o no es una lista.' };
+  const foods = parsed.foods.map(normalizeMealFood).filter(Boolean);
+  if (foods.length !== parsed.foods.length) return { valid: false, error: 'Uno o más ingredientes no tienen el formato esperado.' };
+  return { valid: true, data: { name: parsed.name.trim(), foods } };
+}
+
+function validateDailyMenuImportPayload(parsed) {
+  if (!parsed || typeof parsed !== 'object') return { valid: false, error: 'El archivo no contiene un objeto JSON válido.' };
+  if (toNumber(parsed.version) === null) return { valid: false, error: 'Falta el campo "version".' };
+  if (typeof parsed.exportedAt !== 'string' || !parsed.exportedAt.trim()) return { valid: false, error: 'Falta el campo "exportedAt".' };
+  if (toNumber(parsed.dailyCalorieGoal) === null) return { valid: false, error: 'Falta "dailyCalorieGoal".' };
+  if (toNumber(parsed.mealsCount) === null) return { valid: false, error: 'Falta "mealsCount".' };
+  if (!Array.isArray(parsed.meals)) return { valid: false, error: 'Falta el campo "meals" o no es una lista.' };
+
+  const meals = parsed.meals.map((meal) => {
+    if (!meal || typeof meal !== 'object') return null;
+    if (typeof meal.name !== 'string' || !meal.name.trim()) return null;
+    if (!Array.isArray(meal.foods)) return null;
+    const foods = meal.foods.map(normalizeMealFood).filter(Boolean);
+    if (foods.length !== meal.foods.length) return null;
+    return { name: meal.name.trim(), foods };
+  });
+  if (meals.includes(null)) return { valid: false, error: 'Una o más comidas no tienen el formato esperado.' };
+  return { valid: true, data: { dailyCalorieGoal: Math.max(0, toNumber(parsed.dailyCalorieGoal) || 0), meals } };
+}
+
+function importDailyMenuFile(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    const parsed = safeParseJson(String(reader.result || ''));
+    const validation = validateDailyMenuImportPayload(parsed);
+    if (!validation.valid) return alert(validation.error);
+    const { meals, dailyCalorieGoal } = validation.data;
+    const shouldReplace = window.confirm('¿Quieres reemplazar el menú actual? (Cancelar = combinar)');
+    if (shouldReplace) {
+      state.mealsCount = Math.min(12, Math.max(1, meals.length || 1));
+      state.meals = normalizeMeals(meals, state.mealsCount);
+      state.dailyCalorieGoal = dailyCalorieGoal;
+    } else {
+      const nextMealsCount = Math.min(12, Math.max(state.meals.length, meals.length));
+      state.meals = createInitialMeals(nextMealsCount).map((defaultMeal, index) => {
+        const current = state.meals[index] || defaultMeal;
+        const importedMeal = meals[index];
+        if (!importedMeal) return current;
+        return { name: importedMeal.name || current.name, foods: [...current.foods, ...importedMeal.foods] };
+      });
+      state.mealsCount = nextMealsCount;
+    }
+    saveDayState();
+    render();
+    alert('Menú diario importado correctamente.');
+  };
+  reader.onerror = () => alert('No se pudo leer el archivo JSON seleccionado.');
+  reader.readAsText(file);
+}
+
+function importSingleMealFile(mealIndex, file) {
+  if (!Number.isInteger(mealIndex) || !state.meals[mealIndex] || !file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    const parsed = safeParseJson(String(reader.result || ''));
+    const validation = validateMealImportPayload(parsed);
+    if (!validation.valid) return alert(validation.error);
+    const { foods, name } = validation.data;
+    const shouldReplace = window.confirm('¿Quieres reemplazar esta comida? (Cancelar = combinar ingredientes)');
+    state.meals[mealIndex] = shouldReplace ? { name, foods } : { ...state.meals[mealIndex], foods: [...state.meals[mealIndex].foods, ...foods] };
+    saveDayState();
+    render();
+    alert('Comida importada correctamente.');
+  };
+  reader.onerror = () => alert('No se pudo leer el archivo JSON seleccionado.');
+  reader.readAsText(file);
 }
 
 function cleanupPrintMode() {
@@ -942,6 +1063,9 @@ function renderMeals() {
               <button type="button" class="secondary export-meal-button" data-meal-index="${mealIndex}">
                 Exportar comida
               </button>
+              <button type="button" class="secondary import-meal-button" data-meal-index="${mealIndex}">
+                Importar en esta comida
+              </button>
               <button type="button" class="primary add-food-toggle" ${state.foodLibrary.length ? '' : 'disabled'}>
                 Agregar ingrediente
               </button>
@@ -1070,6 +1194,22 @@ function bindMealEvents() {
     button.addEventListener('click', () => {
       const mealIndex = Number(button.dataset.mealIndex);
       exportSingleMeal(mealIndex);
+    });
+  });
+
+  const importMealButtons = mealsContainer.querySelectorAll('.import-meal-button');
+  importMealButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      const mealIndex = Number(button.dataset.mealIndex);
+      if (!Number.isInteger(mealIndex) || !state.meals[mealIndex]) return;
+      const fileInput = document.createElement('input');
+      fileInput.type = 'file';
+      fileInput.accept = 'application/json,.json';
+      fileInput.addEventListener('change', () => {
+        const [file] = fileInput.files || [];
+        importSingleMealFile(mealIndex, file);
+      });
+      fileInput.click();
     });
   });
 }
@@ -1650,6 +1790,17 @@ function bindUiEvents() {
 
   if (uiFields.exportDailyMenuButton) {
     uiFields.exportDailyMenuButton.addEventListener('click', exportDailyMenu);
+  }
+
+  if (uiFields.importDailyMenuButton && uiFields.importDailyMenuInput) {
+    uiFields.importDailyMenuButton.addEventListener('click', () => {
+      uiFields.importDailyMenuInput.value = '';
+      uiFields.importDailyMenuInput.click();
+    });
+    uiFields.importDailyMenuInput.addEventListener('change', () => {
+      const [file] = uiFields.importDailyMenuInput.files || [];
+      importDailyMenuFile(file);
+    });
   }
 
   window.addEventListener('resize', () => {
