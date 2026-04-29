@@ -11,11 +11,9 @@ const fields = {
 const uiFields = {
   themeToggle: document.getElementById('themeToggle'),
   libraryToggle: document.getElementById('libraryToggle'),
-  librarySection: document.getElementById('librarySection'),
   libraryModal: document.getElementById('libraryModal'),
   libraryModalClose: document.getElementById('libraryModalClose'),
   progressToggle: document.getElementById('progressToggle'),
-  progressSection: document.getElementById('progressSection'),
   progressModal: document.getElementById('progressModal'),
   progressModalClose: document.getElementById('progressModalClose'),
   printMenuButton: document.getElementById('printMenuButton'),
