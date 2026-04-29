@@ -274,7 +274,7 @@ select:focus {
 }
 
 .hidden {
-  display: none;
+  display: none !important;
 }
 
 .modal-overlay {
@@ -312,12 +312,12 @@ select:focus {
   min-height: 36px;
 }
 
-.modal-section {
-  border: 0;
-  border-radius: 0;
+.modal-body {
   padding: 14px;
   overflow: auto;
   max-height: calc(100vh - 100px);
+  display: grid;
+  gap: 10px;
 }
 
 .readonly-label {
