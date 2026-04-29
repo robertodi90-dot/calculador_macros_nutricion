@@ -155,7 +155,9 @@ function normalizeMealFood(rawFood) {
   const fat = toNumber(rawFood.fat);
   const consumedGrams = toNumber(rawFood.consumedGrams);
 
-  if (!name || protein === null || carbs === null || fat === null || consumedGrams === null) return null;
+  if (!name || protein === null || carbs === null || fat === null || consumedGrams === null) {
+    return null;
+  }
   if (protein < 0 || carbs < 0 || fat < 0 || consumedGrams <= 0) return null;
 
   return {
@@ -265,8 +267,6 @@ function extractDayStateFromParsed(parsed) {
   );
   const mealsCount = Math.min(12, Math.max(1, parsedMealsCount));
   const parsedUi = parsed.ui || {};
-  const libraryOpen = Boolean(parsedUi.libraryOpen);
-  const progressOpen = Boolean(parsedUi.progressOpen);
 
   return {
     dailyCalorieGoal: Math.max(0, toNumber(parsed.dailyCalorieGoal) || 0),
@@ -1026,7 +1026,7 @@ function exportFoodLibrary() {
     type: 'application/json',
   });
 
-  const url = URL.createObjectURL(blob);
+  const url = URL const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
 
   link.href = url;
@@ -1147,14 +1147,13 @@ function exportProgressCsv() {
   showProgressStatus(`Se exportaron ${rows.length} registros en CSV.`, 'success');
 }
 
-
 function normalizeCsvHeader(value) {
   return String(value || '')
     .trim()
-    .replace(/^﻿/, '')
+    .replace(/^\ufeff/, '')
     .toLowerCase()
     .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '');
+    .replace(/[\u0300-\u036f]/g, '');
 }
 
 function parseCsvLine(line, separator) {
@@ -1209,7 +1208,10 @@ function importProgressRecords(file) {
     const hasExpectedHeaders = expectedHeaders.every((header, index) => headers[index] === header);
 
     if (!hasExpectedHeaders) {
-      showProgressStatus('Encabezados inválidos. Usa: Fecha;Peso;Grasa corporal %;Calorías teóricas.', 'error');
+      showProgressStatus(
+        'Encabezados inválidos. Usa: Fecha;Peso;Grasa corporal %;Calorías teóricas.',
+        'error'
+      );
       return;
     }
 
@@ -1228,7 +1230,10 @@ function importProgressRecords(file) {
       });
 
       if (!entry) {
-        showProgressStatus(`Fila ${index + 1} inválida. Revisa fecha, peso, grasa y calorías.`, 'error');
+        showProgressStatus(
+          `Fila ${index + 1} inválida. Revisa fecha, peso, grasa y calorías.`,
+          'error'
+        );
         return;
       }
 
@@ -1248,15 +1253,21 @@ function importProgressRecords(file) {
       state.progressLog = sortProgressLogDesc(imported);
       saveProgressLog();
       renderProgressLog();
-      showProgressStatus(`Se importaron ${state.progressLog.length} registros (reemplazo completo).`, 'success');
+      showProgressStatus(
+        `Se importaron ${state.progressLog.length} registros (reemplazo completo).`,
+        'success'
+      );
       return;
     }
 
     const existingFingerprints = new Set(
-      state.progressLog.map((entry) => [entry.date, entry.weight, entry.bodyFat, entry.calories].join('__'))
+      state.progressLog.map((entry) =>
+        [entry.date, entry.weight, entry.bodyFat, entry.calories].join('__')
+      )
     );
 
     let addedCount = 0;
+
     imported.forEach((entry) => {
       const fingerprint = [entry.date, entry.weight, entry.bodyFat, entry.calories].join('__');
       if (existingFingerprints.has(fingerprint)) return;
@@ -1268,7 +1279,10 @@ function importProgressRecords(file) {
     state.progressLog = sortProgressLogDesc(state.progressLog);
     saveProgressLog();
     renderProgressLog();
-    showProgressStatus(`Importación completada. ${addedCount} nuevos, total ${state.progressLog.length}.`, 'success');
+    showProgressStatus(
+      `Importación completada. ${addedCount} nuevos, total ${state.progressLog.length}.`,
+      'success'
+    );
   };
 
   reader.onerror = () => {
