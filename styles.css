@@ -277,7 +277,7 @@ select:focus {
   display: none !important;
 }
 
-.modal-overlay {
+.modal {
   position: fixed;
   inset: 0;
   background: color-mix(in srgb, #000 55%, transparent);
@@ -288,7 +288,7 @@ select:focus {
   z-index: 1000;
 }
 
-.modal-window {
+.modal-dialog {
   width: min(1100px, 100%);
   max-height: calc(100vh - 28px);
   border: 1px solid var(--border);
@@ -366,18 +366,18 @@ select:focus {
 }
 
 @media (max-width: 767px) {
-  .modal-overlay {
+  .modal {
     padding: 0;
   }
 
-  .modal-window {
+  .modal-dialog {
     width: 100%;
     max-height: 100vh;
     height: 100vh;
     border-radius: 0;
   }
 
-  .modal-section {
+  .modal-body {
     max-height: none;
   }
 }
