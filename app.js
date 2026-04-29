@@ -50,12 +50,12 @@ const progressFields = {
   charts: {
     weight: document.getElementById('weightChart'),
     bodyFat: document.getElementById('bodyFatChart'),
-    calories: document.getElementById('caloriesChart'),
+    leanMassGain: document.getElementById('leanMassGainChart'),
   },
   chartEmpty: {
     weight: document.getElementById('weightChartEmpty'),
     bodyFat: document.getElementById('bodyFatChartEmpty'),
-    calories: document.getElementById('caloriesChartEmpty'),
+    leanMassGain: document.getElementById('leanMassGainChartEmpty'),
   },
 };
 
@@ -751,11 +751,16 @@ function renderProgressCharts() {
     'Grasa corporal'
   );
 
+  const baseLeanMass = chartData[0]?.weight * (1 - chartData[0]?.bodyFat / 100);
+
   drawLineChart(
-    progressFields.charts.calories,
-    progressFields.chartEmpty.calories,
-    chartData.map((point) => ({ date: point.date, value: point.calories })),
-    'Calorías teóricas'
+    progressFields.charts.leanMassGain,
+    progressFields.chartEmpty.leanMassGain,
+    chartData.map((point) => ({
+      date: point.date,
+      value: point.weight * (1 - point.bodyFat / 100) - baseLeanMass,
+    })),
+    'Aumento de masa magra'
   );
 }
 
