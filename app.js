@@ -12,8 +12,12 @@ const uiFields = {
   themeToggle: document.getElementById('themeToggle'),
   libraryToggle: document.getElementById('libraryToggle'),
   librarySection: document.getElementById('librarySection'),
+  libraryModal: document.getElementById('libraryModal'),
+  libraryModalClose: document.getElementById('libraryModalClose'),
   progressToggle: document.getElementById('progressToggle'),
   progressSection: document.getElementById('progressSection'),
+  progressModal: document.getElementById('progressModal'),
+  progressModalClose: document.getElementById('progressModalClose'),
   printMenuButton: document.getElementById('printMenuButton'),
   resetDayButton: document.getElementById('resetDayButton'),
 };
@@ -110,7 +114,7 @@ function createDefaultDayState() {
     meals: createInitialMeals(3),
     ui: {
       libraryOpen: false,
-      progressOpen: true,
+      progressOpen: false,
       theme: 'light',
     },
   };
@@ -265,9 +269,8 @@ function extractDayStateFromParsed(parsed) {
     mealsCount,
     meals: normalizeMeals(parsed.meals, mealsCount),
     ui: {
-      libraryOpen: Boolean(parsedUi.libraryOpen),
-      progressOpen:
-        typeof parsedUi.progressOpen === 'boolean' ? parsedUi.progressOpen : true,
+      libraryOpen,
+      progressOpen: libraryOpen ? false : progressOpen,
       theme: parsedUi.theme === 'dark' ? 'dark' : 'light',
     },
   };
@@ -378,22 +381,28 @@ function applyTheme() {
   uiFields.themeToggle.textContent = state.ui.theme === 'dark' ? 'Modo claro' : 'Modo oscuro';
 }
 
-function updateLibraryVisibility() {
-  if (!uiFields.librarySection || !uiFields.libraryToggle) return;
+function updateModalVisibility() {
+  const isLibraryOpen = Boolean(state.ui.libraryOpen);
+  const isProgressOpen = Boolean(state.ui.progressOpen);
 
-  uiFields.librarySection.classList.toggle('hidden', !state.ui.libraryOpen);
-  uiFields.libraryToggle.textContent = state.ui.libraryOpen
-    ? 'Ocultar biblioteca de alimentos'
-    : 'Mostrar biblioteca de alimentos';
-}
+  uiFields.libraryModal?.classList.toggle('hidden', !isLibraryOpen);
+  uiFields.libraryModal?.setAttribute('aria-hidden', String(!isLibraryOpen));
+  uiFields.progressModal?.classList.toggle('hidden', !isProgressOpen);
+  uiFields.progressModal?.setAttribute('aria-hidden', String(!isProgressOpen));
 
-function updateProgressVisibility() {
-  if (!uiFields.progressSection || !uiFields.progressToggle) return;
+  if (uiFields.libraryToggle) {
+    uiFields.libraryToggle.textContent = isLibraryOpen
+      ? 'Cerrar biblioteca de alimentos'
+      : 'Abrir biblioteca de alimentos';
+  }
 
-  uiFields.progressSection.classList.toggle('hidden', !state.ui.progressOpen);
-  uiFields.progressToggle.textContent = state.ui.progressOpen
-    ? 'Ocultar registro diario'
-    : 'Mostrar registro diario';
+  if (uiFields.progressToggle) {
+    uiFields.progressToggle.textContent = isProgressOpen
+      ? 'Cerrar registro diario'
+      : 'Abrir registro diario';
+  }
+
+  document.body.classList.toggle('modal-open', isLibraryOpen || isProgressOpen);
 }
 
 function getFoodTotals(food) {
@@ -832,8 +841,7 @@ function render() {
   }
 
   applyTheme();
-  updateLibraryVisibility();
-  updateProgressVisibility();
+  updateModalVisibility();
   renderFoodLibrary();
   renderSummary();
   renderMeals();
@@ -1266,19 +1274,58 @@ function bindUiEvents() {
 
   if (uiFields.libraryToggle) {
     uiFields.libraryToggle.addEventListener('click', () => {
-      state.ui.libraryOpen = !state.ui.libraryOpen;
+      const willOpen = !state.ui.libraryOpen;
+      state.ui.libraryOpen = willOpen;
+      state.ui.progressOpen = false;
       saveDayState();
-      updateLibraryVisibility();
+      updateModalVisibility();
     });
   }
 
   if (uiFields.progressToggle) {
     uiFields.progressToggle.addEventListener('click', () => {
-      state.ui.progressOpen = !state.ui.progressOpen;
+      const willOpen = !state.ui.progressOpen;
+      state.ui.progressOpen = willOpen;
+      state.ui.libraryOpen = false;
       saveDayState();
-      updateProgressVisibility();
+      updateModalVisibility();
     });
   }
+
+  uiFields.libraryModalClose?.addEventListener('click', () => {
+    state.ui.libraryOpen = false;
+    saveDayState();
+    updateModalVisibility();
+  });
+
+  uiFields.progressModalClose?.addEventListener('click', () => {
+    state.ui.progressOpen = false;
+    saveDayState();
+    updateModalVisibility();
+  });
+
+  uiFields.libraryModal?.addEventListener('click', (event) => {
+    if (event.target !== uiFields.libraryModal) return;
+    state.ui.libraryOpen = false;
+    saveDayState();
+    updateModalVisibility();
+  });
+
+  uiFields.progressModal?.addEventListener('click', (event) => {
+    if (event.target !== uiFields.progressModal) return;
+    state.ui.progressOpen = false;
+    saveDayState();
+    updateModalVisibility();
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape') return;
+    if (!state.ui.libraryOpen && !state.ui.progressOpen) return;
+    state.ui.libraryOpen = false;
+    state.ui.progressOpen = false;
+    saveDayState();
+    updateModalVisibility();
+  });
 
   if (uiFields.resetDayButton) {
     uiFields.resetDayButton.addEventListener('click', () => {
