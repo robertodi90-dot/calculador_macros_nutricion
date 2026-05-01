@@ -3,6 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#2557d6" />
+    <link rel="manifest" href="manifest.json" />
+    <link rel="apple-touch-icon" href="assets/icons/icon-192.svg" />
     <title>Planificador Diario de Macros</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
@@ -13,7 +16,10 @@
           <h1>Plan diario de comidas</h1>
           <p class="subtitle">Versión vanilla · planificación simple del día</p>
         </div>
-        <button id="themeToggle" type="button" class="secondary">Modo oscuro</button>
+        <div class="header-actions">
+          <button id="installAppButton" type="button" class="secondary hidden" aria-hidden="true">Instalar app</button>
+          <button id="themeToggle" type="button" class="secondary">Modo oscuro</button>
+        </div>
       </header>
 
       <section class="card" aria-labelledby="daily-config-title">
