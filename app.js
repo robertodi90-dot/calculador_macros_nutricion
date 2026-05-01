@@ -10,6 +10,7 @@ const fields = {
 
 const uiFields = {
   themeToggle: document.getElementById('themeToggle'),
+  installAppButton: document.getElementById('installAppButton'),
   libraryToggle: document.getElementById('libraryToggle'),
   libraryModal: document.getElementById('libraryModal'),
   libraryModalClose: document.getElementById('libraryModalClose'),
@@ -1832,6 +1833,45 @@ function bindUiEvents() {
   window.addEventListener('afterprint', cleanupPrintMode);
 }
 
+
+let deferredInstallPrompt = null;
+
+function registerServiceWorker() {
+  if (!('serviceWorker' in navigator) || window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') return;
+
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js').catch(() => {
+      // no-op: la app sigue funcionando sin service worker
+    });
+  });
+}
+
+function bindInstallPrompt() {
+  const installButton = uiFields.installAppButton;
+  if (!installButton) return;
+
+  window.addEventListener('beforeinstallprompt', (event) => {
+    event.preventDefault();
+    deferredInstallPrompt = event;
+    installButton.classList.remove('hidden');
+    installButton.setAttribute('aria-hidden', 'false');
+  });
+
+  window.addEventListener('appinstalled', () => {
+    deferredInstallPrompt = null;
+    installButton.classList.add('hidden');
+    installButton.setAttribute('aria-hidden', 'true');
+  });
+
+  installButton.addEventListener('click', async () => {
+    if (!deferredInstallPrompt) return;
+    deferredInstallPrompt.prompt();
+    await deferredInstallPrompt.userChoice;
+    deferredInstallPrompt = null;
+    installButton.classList.add('hidden');
+    installButton.setAttribute('aria-hidden', 'true');
+  });
+}
 migrateLegacyStorageIfNeeded();
 
 const dayState = loadDayState();
@@ -1856,6 +1896,8 @@ fields.mealsCount?.addEventListener('input', () => {
 });
 
 bindUiEvents();
+bindInstallPrompt();
+registerServiceWorker();
 bindLibraryEvents();
 bindProgressEvents();
 updateLibraryCaloriesPreview();
