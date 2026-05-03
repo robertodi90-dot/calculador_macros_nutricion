@@ -1067,6 +1067,22 @@ function downloadDailyMenuPdf() {
 
       const gramsY = lineY + ((Math.max(1, wrappedName.length) - 1) * rowLineHeight) / 2;
       pdf.text(gramsText, gramsX, gramsY, { align: 'right' });
+
+      const lastNameLine = wrappedName[wrappedName.length - 1] || '';
+      const lineStartX = foodX + pdf.getTextWidth(lastNameLine) + 2;
+      const lineEndX = gramsX - pdf.getTextWidth(gramsText) - 2;
+      if (lineEndX > lineStartX) {
+        pdf.setDrawColor(180, 180, 180);
+        pdf.setLineWidth(0.12);
+        if (typeof pdf.setLineDashPattern === 'function') {
+          pdf.setLineDashPattern([0.7, 0.7], 0);
+        }
+        pdf.line(lineStartX, gramsY - 0.7, lineEndX, gramsY - 0.7);
+        if (typeof pdf.setLineDashPattern === 'function') {
+          pdf.setLineDashPattern([], 0);
+        }
+      }
+
       lineY += rowHeight;
     });
 
