@@ -557,3 +557,88 @@ body.printing-menu #printMenuSection {
     position: static;
   }
 }
+
+.waist-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.waist-guide-trigger {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #2563eb;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.waist-guide-trigger:hover {
+  color: #1d4ed8;
+}
+
+.waist-guide-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(17, 24, 39, 0.65);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: 60;
+}
+
+.waist-guide-modal.visible {
+  display: flex;
+}
+
+.waist-guide-content {
+  position: relative;
+  width: min(92vw, 540px);
+  max-height: 90vh;
+  overflow-y: auto;
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 20px 16px 16px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.waist-guide-close {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  border: 0;
+  background: transparent;
+  font-size: 1.6rem;
+  line-height: 1;
+  color: #111827;
+  cursor: pointer;
+}
+
+.waist-guide-image {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+  margin-top: 8px;
+}
+
+@media (max-width: 640px) {
+  .waist-label-row {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .waist-guide-content {
+    padding: 18px 12px 12px;
+  }
+}
+
+#waistGuideModal {
+  z-index: 20000;
+}
