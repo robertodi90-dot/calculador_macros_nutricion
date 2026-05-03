@@ -1001,7 +1001,7 @@ function downloadDailyMenuPdf() {
   const mealTitleSize = 9.5;
   const tableTextSize = 7.8;
   const rowLineHeight = 3.2;
-  const rowSpacing = 1.6;
+  const rowSpacing = 2.2;
   const afterRowsSpacing = 2.6;
   const blockBottomPadding = 1.4;
   const mealRowSpacing = 3.2;
@@ -1029,8 +1029,8 @@ function downloadDailyMenuPdf() {
   const getGramsX = (x, blockWidth) => x + blockWidth - blockInnerPaddingX;
 
   const estimateMealBlockHeight = (meal, blockWidth) => {
-    const titleHeight = 3.8;
-    const tableHeaderHeight = 3.4;
+    const titleHeight = 4.2;
+    const tableHeaderHeight = 4.2;
     const foodColumnWidth = getFoodColumnWidth(blockWidth);
     const foodRowsHeight = meal.foods.reduce((height, food) => {
       const wrappedLines = pdf.splitTextToSize(food.name, foodColumnWidth);
@@ -1051,7 +1051,7 @@ function downloadDailyMenuPdf() {
     pdf.setFontSize(mealTitleSize);
     pdf.text(meal.name, x, lineY);
 
-    lineY += 3.6;
+    lineY += 4.2;
     pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(tableTextSize);
     pdf.text('Alimento', foodX, lineY);
@@ -1074,15 +1074,16 @@ function downloadDailyMenuPdf() {
       pdf.text(gramsText, gramsX, gramsY, { align: 'right' });
 
       const lastNameLine = wrappedName[wrappedName.length - 1] || '';
-      const lineStartX = foodX + pdf.getTextWidth(lastNameLine) + 2;
-      const lineEndX = gramsX - pdf.getTextWidth(gramsText) - 2;
-      if (lineEndX > lineStartX) {
+      const lineStartX = foodX + pdf.getTextWidth(lastNameLine) + 2.8;
+      const lineEndX = gramsX - pdf.getTextWidth(gramsText) - 2.8;
+      const guideLineWidth = lineEndX - lineStartX;
+      if (guideLineWidth > 2.4) {
         pdf.setDrawColor(0, 0, 0);
-        pdf.setLineWidth(0.12);
+        pdf.setLineWidth(0.1);
         if (typeof pdf.setLineDashPattern === 'function') {
           pdf.setLineDashPattern([0.7, 0.7], 0);
         }
-        pdf.line(lineStartX, gramsY - 0.7, lineEndX, gramsY - 0.7);
+        pdf.line(lineStartX, gramsY, lineEndX, gramsY);
         if (typeof pdf.setLineDashPattern === 'function') {
           pdf.setLineDashPattern([], 0);
         }
