@@ -2425,5 +2425,11 @@ initCollapsibleSection(
   'Mostrar captura de sueño',
   'Ocultar captura de sueño'
 );
+initCollapsibleSection(
+  'toggleDailySummaryButton',
+  'dailySummaryPanel',
+  'Mostrar resumen diario',
+  'Ocultar resumen diario'
+);
 updateLibraryCaloriesPreview();
 render();
