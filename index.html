@@ -319,7 +319,17 @@
 
             <p id="progressStatusMessage" class="status-message" aria-live="polite"></p>
 
-            <div>
+            <button
+              id="toggleHistoryButton"
+              type="button"
+              class="secondary collapsible-toggle"
+              aria-expanded="false"
+              aria-controls="historyPanel"
+            >
+              Mostrar historial
+            </button>
+
+            <div id="historyPanel" class="hidden">
               <h3 class="subheading">Historial</h3>
               <ul id="progressLogList" class="food-list"></ul>
             </div>

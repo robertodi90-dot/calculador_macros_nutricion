@@ -2402,6 +2402,12 @@ registerServiceWorker();
 bindLibraryEvents();
 bindProgressEvents();
 initCollapsibleSection(
+  'toggleHistoryButton',
+  'historyPanel',
+  'Mostrar historial',
+  'Ocultar historial'
+);
+initCollapsibleSection(
   'toggleChartsButton',
   'chartsPanel',
   'Mostrar gráficos',
