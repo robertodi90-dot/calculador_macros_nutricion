@@ -54,12 +54,6 @@ const progressFields = {
   extractMovementButton: document.getElementById('extractMovementDataButton'),
   movementOcrStatus: document.getElementById('movementOcrStatus'),
   movementCaloriesBurned: document.getElementById('movementCaloriesBurned'),
-  movementCaloriesGoal: document.getElementById('movementCaloriesGoal'),
-  movementRunPercent: document.getElementById('movementRunPercent'),
-  movementWalkPercent: document.getElementById('movementWalkPercent'),
-  movementBikePercent: document.getElementById('movementBikePercent'),
-  movementClimbPercent: document.getElementById('movementClimbPercent'),
-  movementOtherPercent: document.getElementById('movementOtherPercent'),
   sleepImage: document.getElementById('progressSleepImage'),
   sleepPreview: document.getElementById('progressSleepPreview'),
   extractSleepButton: document.getElementById('extractSleepDataButton'),
@@ -377,12 +371,6 @@ function extractSleepDataFromText(text) {
 
 function fillMovementFields(data) {
   if (data.caloriesBurned !== undefined) progressFields.movementCaloriesBurned.value = data.caloriesBurned;
-  if (data.goalCalories !== undefined) progressFields.movementCaloriesGoal.value = data.goalCalories;
-  if (data.runPercent !== undefined) progressFields.movementRunPercent.value = data.runPercent;
-  if (data.walkPercent !== undefined) progressFields.movementWalkPercent.value = data.walkPercent;
-  if (data.bikePercent !== undefined) progressFields.movementBikePercent.value = data.bikePercent;
-  if (data.climbPercent !== undefined) progressFields.movementClimbPercent.value = data.climbPercent;
-  if (data.otherPercent !== undefined) progressFields.movementOtherPercent.value = data.otherPercent;
 }
 
 function fillSleepFields(data) {
@@ -1633,13 +1621,6 @@ function exportProgressTxt() {
     '',
     '--- MOVIMIENTO ---',
     `Calorías gastadas: ${toMissingTextValue(entry.movement?.caloriesBurned)}${entry.movement?.caloriesBurned === null ? '' : ' kcal'}`,
-    `Objetivo movimiento: ${toMissingTextValue(entry.movement?.goalCalories)}${entry.movement?.goalCalories === null ? '' : ' kcal'}`,
-    'Desglose:',
-    `- Correr: ${toMissingTextValue(entry.movement?.runPercent)}${entry.movement?.runPercent === null ? '' : '%'}`,
-    `- Caminar: ${toMissingTextValue(entry.movement?.walkPercent)}${entry.movement?.walkPercent === null ? '' : '%'}`,
-    `- Bicicleta: ${toMissingTextValue(entry.movement?.bikePercent)}${entry.movement?.bikePercent === null ? '' : '%'}`,
-    `- Subir: ${toMissingTextValue(entry.movement?.climbPercent)}${entry.movement?.climbPercent === null ? '' : '%'}`,
-    `- Otras: ${toMissingTextValue(entry.movement?.otherPercent)}${entry.movement?.otherPercent === null ? '' : '%'}`,
     '',
     '--- SUEÑO ---',
     `Puntaje sueño: ${toMissingTextValue(entry.sleep?.score)}${entry.sleep?.score === null ? '' : ' puntos'}`,
@@ -1950,12 +1931,6 @@ function bindProgressEvents() {
         sleepImage: progressFields.sleepPreview?.src || null,
         movement: {
           caloriesBurned: progressFields.movementCaloriesBurned.value,
-          goalCalories: progressFields.movementCaloriesGoal.value,
-          runPercent: progressFields.movementRunPercent.value,
-          walkPercent: progressFields.movementWalkPercent.value,
-          bikePercent: progressFields.movementBikePercent.value,
-          climbPercent: progressFields.movementClimbPercent.value,
-          otherPercent: progressFields.movementOtherPercent.value,
         },
         sleep: {
           score: progressFields.sleepScore.value,
@@ -2028,7 +2003,7 @@ function bindProgressEvents() {
       const data = extractMovementDataFromText(text);
       fillMovementFields(data);
       const detected = Object.keys(data).length;
-      showStatus(progressFields.movementOcrStatus, detected ? (detected >= 7 ? 'Datos extraídos' : 'No se pudieron detectar algunos datos') : 'No se detectaron datos', detected ? 'success' : 'warning');
+      showStatus(progressFields.movementOcrStatus, detected ? 'Calorías extraídas' : 'No se detectaron calorías', detected ? 'success' : 'warning');
     } catch {
       showStatus(progressFields.movementOcrStatus, 'No se pudo leer la imagen. Puedes completar los datos manualmente.', 'error');
     } finally {
