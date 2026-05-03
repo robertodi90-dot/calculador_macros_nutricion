@@ -171,6 +171,21 @@ label {
   font-size: 0.95rem;
 }
 
+
+.label-inline-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.derived-value {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
 .required-mark {
   color: var(--error);
   font-size: 0.85em;
@@ -674,7 +689,8 @@ body.printing-menu #printMenuSection {
 }
 
 @media (max-width: 640px) {
-  .waist-label-row {
+  .waist-label-row,
+  .label-inline-row {
     align-items: flex-start;
     flex-direction: column;
     gap: 4px;
