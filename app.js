@@ -216,6 +216,7 @@ function normalizeProgressLogEntry(rawEntry) {
   const waist = toNumber(rawEntry.waist);
   const movement = rawEntry.movement && typeof rawEntry.movement === 'object' ? rawEntry.movement : {};
   const sleep = rawEntry.sleep && typeof rawEntry.sleep === 'object' ? rawEntry.sleep : {};
+  const nutritionSummary = normalizeNutritionSummary(rawEntry.nutritionSummary);
 
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
   if (weight === null || weight <= 0) return null;
@@ -258,6 +259,23 @@ function normalizeProgressLogEntry(rawEntry) {
       deepContinuity: toNumber(sleep.deepContinuity),
       breathingQuality: toNumber(sleep.breathingQuality),
     },
+    nutritionSummary,
+  };
+}
+
+function normalizeNutritionSummary(rawSummary) {
+  if (!rawSummary || typeof rawSummary !== 'object') return null;
+  return {
+    proteinGrams: toNumber(rawSummary.proteinGrams),
+    carbsGrams: toNumber(rawSummary.carbsGrams),
+    fatGrams: toNumber(rawSummary.fatGrams),
+    consumedCalories: toNumber(rawSummary.consumedCalories),
+    calorieGoal: toNumber(rawSummary.calorieGoal),
+    remainingCalories: toNumber(rawSummary.remainingCalories),
+    weightUsedKg: toNumber(rawSummary.weightUsedKg),
+    proteinPerKg: toNumber(rawSummary.proteinPerKg),
+    carbsPerKg: toNumber(rawSummary.carbsPerKg),
+    fatPerKg: toNumber(rawSummary.fatPerKg),
   };
 }
 
@@ -1500,6 +1518,7 @@ function bindProgressListEvents() {
         sleepImage: entry.sleepImage,
         movement: entry.movement,
         sleep: entry.sleep,
+        nutritionSummary: entry.nutritionSummary ?? null,
       });
 
       if (!updated) {
@@ -1653,6 +1672,26 @@ function toMissingTextValue(value) {
   return value === null || value === undefined || value === '' ? 'no ingresado' : value;
 }
 
+function getCurrentNutritionSummarySnapshot() {
+  const totals = getDayTotals();
+  const remaining = state.dailyCalorieGoal - totals.calories;
+  const weightUsedKg = getLatestProgressWeight();
+  const hasWeight = typeof weightUsedKg === 'number' && weightUsedKg > 0;
+
+  return {
+    proteinGrams: Number(totals.protein.toFixed(1)),
+    carbsGrams: Number(totals.carbs.toFixed(1)),
+    fatGrams: Number(totals.fat.toFixed(1)),
+    consumedCalories: Math.round(totals.calories),
+    calorieGoal: Math.round(state.dailyCalorieGoal),
+    remainingCalories: Math.round(remaining),
+    weightUsedKg: hasWeight ? Number(weightUsedKg.toFixed(1)) : null,
+    proteinPerKg: hasWeight ? Number((totals.protein / weightUsedKg).toFixed(2)) : null,
+    carbsPerKg: hasWeight ? Number((totals.carbs / weightUsedKg).toFixed(2)) : null,
+    fatPerKg: hasWeight ? Number((totals.fat / weightUsedKg).toFixed(2)) : null,
+  };
+}
+
 function buildProgressTxtLines(entries) {
   return sortProgressLogDesc(entries).map((entry, index) => [
     '=== REGISTRO DIARIO ===',
@@ -1666,10 +1705,17 @@ function buildProgressTxtLines(entries) {
     `Medida cintura/estómago: ${entry.waist === null ? 'no ingresado' : `${entry.waist} cm`}`,
     '',
     `--- ALIMENTACIÓN DEL ${resolveActivityDate(entry) || 'día no ingresado'} ---`,
-    `Calorías consumidas: ${entry.calories === null ? 'no ingresado' : `${entry.calories} kcal`}`,
-    `Proteínas: no ingresado`,
-    `Carbohidratos: no ingresado`,
-    `Grasas: no ingresado`,
+    '--- ALIMENTACIÓN / RESUMEN DIARIO ---',
+    `Proteínas: ${entry.nutritionSummary?.proteinGrams === null || entry.nutritionSummary?.proteinGrams === undefined ? 'no registrado' : `${entry.nutritionSummary.proteinGrams.toFixed(1)} g`}`,
+    `Carbohidratos: ${entry.nutritionSummary?.carbsGrams === null || entry.nutritionSummary?.carbsGrams === undefined ? 'no registrado' : `${entry.nutritionSummary.carbsGrams.toFixed(1)} g`}`,
+    `Grasas: ${entry.nutritionSummary?.fatGrams === null || entry.nutritionSummary?.fatGrams === undefined ? 'no registrado' : `${entry.nutritionSummary.fatGrams.toFixed(1)} g`}`,
+    `Calorías consumidas: ${entry.nutritionSummary?.consumedCalories === null || entry.nutritionSummary?.consumedCalories === undefined ? 'no registrado' : `${entry.nutritionSummary.consumedCalories} kcal`}`,
+    `Objetivo calórico: ${entry.nutritionSummary?.calorieGoal === null || entry.nutritionSummary?.calorieGoal === undefined ? 'no registrado' : `${entry.nutritionSummary.calorieGoal} kcal`}`,
+    `Calorías restantes: ${entry.nutritionSummary?.remainingCalories === null || entry.nutritionSummary?.remainingCalories === undefined ? 'no registrado' : `${entry.nutritionSummary.remainingCalories} kcal`}`,
+    `Peso usado: ${entry.nutritionSummary?.weightUsedKg === null || entry.nutritionSummary?.weightUsedKg === undefined ? 'no registrado' : `${entry.nutritionSummary.weightUsedKg.toFixed(1)} kg`}`,
+    `Proteínas por kg: ${entry.nutritionSummary?.proteinPerKg === null || entry.nutritionSummary?.proteinPerKg === undefined ? 'no registrado' : `${entry.nutritionSummary.proteinPerKg.toFixed(2)} g/kg`}`,
+    `Carbohidratos por kg: ${entry.nutritionSummary?.carbsPerKg === null || entry.nutritionSummary?.carbsPerKg === undefined ? 'no registrado' : `${entry.nutritionSummary.carbsPerKg.toFixed(2)} g/kg`}`,
+    `Grasas por kg: ${entry.nutritionSummary?.fatPerKg === null || entry.nutritionSummary?.fatPerKg === undefined ? 'no registrado' : `${entry.nutritionSummary.fatPerKg.toFixed(2)} g/kg`}`,
     '',
     `--- MOVIMIENTO DEL ${resolveActivityDate(entry) || 'día no ingresado'} ---`,
     `Calorías gastadas: ${toMissingTextValue(entry.movement?.caloriesBurned)}${entry.movement?.caloriesBurned === null ? '' : ' kcal'}`,
@@ -1744,6 +1790,7 @@ function exportProgressJson() {
       movementImage: entry.movementImage ?? null,
       movement: entry.movement,
       sleep: entry.sleep,
+      nutritionSummary: entry.nutritionSummary ?? null,
     })),
   };
 
@@ -2035,6 +2082,7 @@ function bindProgressEvents() {
           deepContinuity: progressFields.sleepDeepContinuity.value,
           breathingQuality: progressFields.sleepBreathingQuality.value,
         },
+        nutritionSummary: getCurrentNutritionSummarySnapshot(),
     });
 
     if (!progressFields.date.value) {
