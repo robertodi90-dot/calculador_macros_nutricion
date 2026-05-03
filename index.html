@@ -236,6 +236,12 @@
                   <input id="progressMovementImage" name="movementImage" type="file" accept="image/*" />
                 </label>
                 <img id="progressMovementPreview" class="capture-preview hidden" alt="Vista previa de movimiento" />
+                <div class="capture-actions">
+                  <button id="extractMovementDataButton" type="button" class="secondary">
+                    Extraer datos de movimiento
+                  </button>
+                  <p id="movementOcrStatus" class="status-message capture-status" aria-live="polite"></p>
+                </div>
                 <div class="capture-grid">
                   <label for="movementCaloriesBurned">
                     Calorías gastadas (kcal)
@@ -275,6 +281,12 @@
                   <input id="progressSleepImage" name="sleepImage" type="file" accept="image/*" />
                 </label>
                 <img id="progressSleepPreview" class="capture-preview hidden" alt="Vista previa de sueño" />
+                <div class="capture-actions">
+                  <button id="extractSleepDataButton" type="button" class="secondary">
+                    Extraer datos de sueño
+                  </button>
+                  <p id="sleepOcrStatus" class="status-message capture-status" aria-live="polite"></p>
+                </div>
                 <div class="capture-grid">
                   <label for="sleepScore">Puntaje sueño</label>
                   <input id="sleepScore" name="sleepScore" type="number" min="0" step="1" inputmode="numeric" />
@@ -431,6 +443,7 @@
       </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <script type="module" src="/app.js"></script>
   </body>
 </html>
