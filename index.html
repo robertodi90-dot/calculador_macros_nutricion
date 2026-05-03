@@ -379,11 +379,21 @@
             <button id="importDailyMenuButton" type="button" class="secondary">
               Cargar menú diario
             </button>
-            <button id="resetDayButton" type="button" class="secondary">Resetear día</button>
           </div>
         </div>
         <input id="importDailyMenuInput" type="file" accept="application/json,.json" class="hidden" />
 
+        <button
+          type="button"
+          id="toggleDailySummaryButton"
+          class="secondary collapsible-toggle"
+          aria-expanded="false"
+          aria-controls="dailySummaryPanel"
+        >
+          Mostrar resumen diario
+        </button>
+
+        <div id="dailySummaryPanel" class="hidden">
         <div class="summary-grid" role="status" aria-live="polite">
           <article class="result-item">
             <h3>Proteínas</h3>
@@ -427,6 +437,7 @@
               <p><span id="dailyFatPerKg">--</span> g/kg</p>
             </article>
           </div>
+        </div>
         </div>
       </section>
 
