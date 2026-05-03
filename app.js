@@ -1006,6 +1006,7 @@ function downloadDailyMenuPdf() {
   };
 
   const addHeader = () => {
+    pdf.setTextColor(0, 0, 0);
     pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(13);
     pdf.text('Menú diario de comidas', marginX, cursorY);
@@ -1038,6 +1039,7 @@ function downloadDailyMenuPdf() {
     const foodColumnWidth = getFoodColumnWidth(blockWidth);
     let lineY = y;
 
+    pdf.setTextColor(0, 0, 0);
     pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(mealTitleSize);
     pdf.text(meal.name, x, lineY);
@@ -1047,10 +1049,6 @@ function downloadDailyMenuPdf() {
     pdf.setFontSize(tableTextSize);
     pdf.text('Alimento', foodX, lineY);
     pdf.text('Gramos', gramsX, lineY, { align: 'right' });
-
-    lineY += 1;
-    pdf.setDrawColor(215, 215, 215);
-    pdf.line(foodX, lineY, gramsX, lineY);
 
     lineY += rowSpacing;
     pdf.setFont('helvetica', 'normal');
@@ -1072,7 +1070,7 @@ function downloadDailyMenuPdf() {
       const lineStartX = foodX + pdf.getTextWidth(lastNameLine) + 2;
       const lineEndX = gramsX - pdf.getTextWidth(gramsText) - 2;
       if (lineEndX > lineStartX) {
-        pdf.setDrawColor(180, 180, 180);
+        pdf.setDrawColor(0, 0, 0);
         pdf.setLineWidth(0.12);
         if (typeof pdf.setLineDashPattern === 'function') {
           pdf.setLineDashPattern([0.7, 0.7], 0);
@@ -1095,9 +1093,6 @@ function downloadDailyMenuPdf() {
       lineY
     );
 
-    lineY += 1;
-    pdf.setDrawColor(225, 225, 225);
-    pdf.line(foodX, lineY, gramsX, lineY);
   };
 
   let cursorY = marginTop;
@@ -1122,6 +1117,7 @@ function downloadDailyMenuPdf() {
 
   const dayTotals = getDayTotals();
   ensureSpace(10);
+  pdf.setTextColor(0, 0, 0);
   pdf.setFont('helvetica', 'bold');
   pdf.setFontSize(9);
   pdf.text('Resumen diario final', marginX, cursorY);
