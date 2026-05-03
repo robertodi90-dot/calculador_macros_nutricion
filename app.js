@@ -1,3 +1,5 @@
+import { jsPDF } from 'jspdf';
+
 const LEGACY_STORAGE_KEY = 'macroPlannerDay_v1';
 const FOOD_LIBRARY_STORAGE_KEY = 'macroPlannerFoodLibrary_v1';
 const DAY_STATE_STORAGE_KEY = 'macroPlannerDayState_v1';
@@ -101,8 +103,6 @@ const summary = {
 
 const mealsContainer = document.getElementById('mealsContainer');
 const printMenuSection = document.getElementById('printMenuSection');
-
-let isPrintModeActive = false;
 
 function safeParseJson(raw) {
   try {
@@ -971,33 +971,98 @@ function importSingleMealFile(mealIndex, file) {
   reader.readAsText(file);
 }
 
-function cleanupPrintMode() {
-  isPrintModeActive = false;
-  document.body.classList.remove('printing-menu');
-
-  if (printMenuSection) {
-    printMenuSection.classList.add('hidden');
-    printMenuSection.setAttribute('aria-hidden', 'true');
-    printMenuSection.innerHTML = '';
+function downloadDailyMenuPdf() {
+  const mealsWithFoods = state.meals.filter((meal) => meal.foods.length > 0);
+  if (!mealsWithFoods.length) {
+    alert('Aún no hay comidas con ingredientes para exportar a PDF.');
+    return;
   }
-}
 
-function openPrintableMenu() {
-  if (!printMenuSection) return;
+  const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const pageHeight = pdf.internal.pageSize.getHeight();
+  const margin = 10;
+  const contentWidth = pageWidth - margin * 2;
+  const lineHeight = 4.5;
+  const blockPadding = 3;
+  const sectionSpacing = 3;
+  const ingredientGap = 0.8;
 
-  const printableHtml = buildPrintableMenuHtml();
-  if (!printableHtml) return;
+  const ensureSpace = (requiredHeight) => {
+    if (cursorY + requiredHeight <= pageHeight - margin) return;
+    pdf.addPage();
+    cursorY = margin;
+  };
 
-  printMenuSection.innerHTML = printableHtml;
-  printMenuSection.classList.remove('hidden');
-  printMenuSection.setAttribute('aria-hidden', 'false');
+  const addHeader = () => {
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(14);
+    pdf.text('Menú diario de comidas', margin, cursorY);
+    cursorY += 5.5;
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(9);
+    pdf.text(`Fecha: ${getPrintableDate()}`, margin, cursorY);
+    cursorY += 5;
+  };
 
-  isPrintModeActive = true;
-  document.body.classList.add('printing-menu');
+  let cursorY = margin;
+  addHeader();
 
-  setTimeout(() => {
-    window.print();
-  }, 50);
+  mealsWithFoods.forEach((meal, mealIndex) => {
+    const mealTotals = getMealTotals(meal);
+    const mealHeaderHeight = 5;
+    const ingredientsHeight = meal.foods.length * (lineHeight + ingredientGap);
+    const subtotalHeight = 5;
+    const blockHeight = blockPadding * 2 + mealHeaderHeight + ingredientsHeight + subtotalHeight;
+
+    ensureSpace(blockHeight + sectionSpacing);
+    pdf.setDrawColor(210, 210, 210);
+    pdf.rect(margin, cursorY, contentWidth, blockHeight);
+
+    let lineY = cursorY + blockPadding + 3.7;
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(10);
+    pdf.text(meal.name, margin + blockPadding, lineY);
+
+    lineY += 4.2;
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(9);
+    meal.foods.forEach((food) => {
+      lineY += lineHeight;
+      pdf.text(food.name, margin + blockPadding, lineY);
+      pdf.text(`${food.consumedGrams.toFixed(1)} g`, margin + contentWidth - blockPadding, lineY, { align: 'right' });
+      lineY += ingredientGap;
+    });
+
+    lineY += 3.5;
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(9);
+    pdf.text(
+      `Subtotal: P ${mealTotals.protein.toFixed(1)} g · C ${mealTotals.carbs.toFixed(1)} g · G ${mealTotals.fat.toFixed(1)} g · ${Math.round(mealTotals.calories)} kcal`,
+      margin + blockPadding,
+      lineY
+    );
+
+    cursorY += blockHeight + sectionSpacing;
+    if (mealIndex === mealsWithFoods.length - 1) cursorY += 1;
+  });
+
+  const dayTotals = getDayTotals();
+  ensureSpace(12);
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(10);
+  pdf.text('Resumen diario final', margin, cursorY);
+  cursorY += 5;
+  pdf.setFont('helvetica', 'normal');
+  pdf.setFontSize(9);
+  pdf.text(
+    `Proteínas: ${dayTotals.protein.toFixed(1)} g · Carbohidratos: ${dayTotals.carbs.toFixed(1)} g · Grasas: ${dayTotals.fat.toFixed(1)} g · Calorías: ${Math.round(dayTotals.calories)} kcal`,
+    margin,
+    cursorY,
+    { maxWidth: contentWidth }
+  );
+
+  pdf.save(`menu-diario-${getTodayIsoDate()}.pdf`);
 }
 
 function renderSummary() {
@@ -2274,7 +2339,7 @@ function bindUiEvents() {
   }
 
   if (uiFields.printMenuButton) {
-    uiFields.printMenuButton.addEventListener('click', openPrintableMenu);
+    uiFields.printMenuButton.addEventListener('click', downloadDailyMenuPdf);
   }
 
   if (uiFields.exportDailyMenuButton) {
@@ -2296,7 +2361,6 @@ function bindUiEvents() {
     renderProgressCharts();
   });
 
-  window.addEventListener('afterprint', cleanupPrintMode);
 }
 
 
@@ -2381,7 +2445,11 @@ let state = {
   progressLog: loadProgressLog(),
 };
 
-cleanupPrintMode();
+if (printMenuSection) {
+  printMenuSection.classList.add('hidden');
+  printMenuSection.setAttribute('aria-hidden', 'true');
+  printMenuSection.innerHTML = '';
+}
 
 fields.dailyCalorieGoal?.addEventListener('input', () => {
   state.dailyCalorieGoal = Math.max(0, toNumber(fields.dailyCalorieGoal.value) || 0);
