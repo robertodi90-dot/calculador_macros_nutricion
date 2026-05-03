@@ -51,6 +51,8 @@ const progressFields = {
   waist: document.getElementById('progressWaist'),
   movementImage: document.getElementById('progressMovementImage'),
   movementPreview: document.getElementById('progressMovementPreview'),
+  extractMovementButton: document.getElementById('extractMovementDataButton'),
+  movementOcrStatus: document.getElementById('movementOcrStatus'),
   movementCaloriesBurned: document.getElementById('movementCaloriesBurned'),
   movementCaloriesGoal: document.getElementById('movementCaloriesGoal'),
   movementRunPercent: document.getElementById('movementRunPercent'),
@@ -60,6 +62,8 @@ const progressFields = {
   movementOtherPercent: document.getElementById('movementOtherPercent'),
   sleepImage: document.getElementById('progressSleepImage'),
   sleepPreview: document.getElementById('progressSleepPreview'),
+  extractSleepButton: document.getElementById('extractSleepDataButton'),
+  sleepOcrStatus: document.getElementById('sleepOcrStatus'),
   sleepScore: document.getElementById('sleepScore'),
   sleepTotal: document.getElementById('sleepTotal'),
   sleepDeep: document.getElementById('sleepDeep'),
@@ -276,6 +280,93 @@ function fileToDataUrl(file) {
     reader.onerror = () => reject(new Error('No se pudo leer la imagen.'));
     reader.readAsDataURL(file);
   });
+}
+
+async function runOcrFromImage(fileOrImageElement) {
+  if (!window.Tesseract) {
+    throw new Error('OCR_UNAVAILABLE');
+  }
+  const input =
+    fileOrImageElement instanceof HTMLImageElement ? fileOrImageElement.src : fileOrImageElement;
+  if (!input) throw new Error('OCR_MISSING_IMAGE');
+  const result = await window.Tesseract.recognize(input, 'spa+eng');
+  return String(result?.data?.text || '');
+}
+
+function extractMovementDataFromText(text) {
+  const normalized = String(text || '').replace(/\s+/g, ' ');
+  const movement = {};
+  const kcalPair = normalized.match(/(\d{2,4})\s*\/\s*(\d{2,4})\s*kcal/i);
+  if (kcalPair) {
+    movement.caloriesBurned = Number(kcalPair[1]);
+    movement.goalCalories = Number(kcalPair[2]);
+  }
+  if (movement.caloriesBurned === undefined) {
+    const kcalBurned = normalized.match(/(?:movimiento|gastad[ao]s?)?\s*(\d{2,4})\s*kcal/i);
+    if (kcalBurned) movement.caloriesBurned = Number(kcalBurned[1]);
+  }
+  ['correr', 'caminar', 'bicicleta', 'subir', 'otras'].forEach((label) => {
+    const match = normalized.match(new RegExp(`${label}\\s*[:\\-]?\\s*(\\d{1,3})\\s*%`, 'i'));
+    if (!match) return;
+    const keyMap = { correr: 'runPercent', caminar: 'walkPercent', bicicleta: 'bikePercent', subir: 'climbPercent', otras: 'otherPercent' };
+    movement[keyMap[label]] = Number(match[1]);
+  });
+  return movement;
+}
+
+function extractSleepDataFromText(text) {
+  const normalized = String(text || '').replace(/\s+/g, ' ');
+  const sleep = {};
+  const durationPattern = /(\d{1,2})\s*h(?:oras?)?\s*(\d{1,2})?\s*min?/i;
+  const toDuration = (match) => (match ? `${match[1]} h ${match[2] || '0'} min` : null);
+
+  const score = normalized.match(/(?:puntaje|puntuaci[oó]n)\s*(?:de)?\s*sue[nñ]o\s*[:\-]?\s*(\d{1,3})/i) || normalized.match(/\b(\d{1,3})\s*puntos\b/i);
+  if (score) sleep.score = Number(score[1]);
+  const total = normalized.match(/horas?\s*de\s*sue[nñ]o\s*[:\-]?\s*(\d{1,2}\s*h(?:oras?)?\s*\d{0,2}\s*min?)/i) || normalized.match(durationPattern);
+  if (total) sleep.total = toDuration(total);
+  const deepPct = normalized.match(/sue[nñ]o\s*profundo\s*[:\-]?\s*(\d{1,3})\s*%/i);
+  if (deepPct) sleep.deepPercent = Number(deepPct[1]);
+  const deepTime = normalized.match(/sue[nñ]o\s*profundo[^\d]*(\d{1,2}\s*h(?:oras?)?\s*\d{1,2}\s*min?)/i);
+  if (deepTime) sleep.deep = toDuration(deepTime);
+  const lightPct = normalized.match(/sue[nñ]o\s*liviano\s*[:\-]?\s*(\d{1,3})\s*%/i);
+  if (lightPct) sleep.lightPercent = Number(lightPct[1]);
+  const lightTime = normalized.match(/sue[nñ]o\s*liviano[^\d]*(\d{1,2}\s*h(?:oras?)?\s*\d{1,2}\s*min?)/i);
+  if (lightTime) sleep.light = toDuration(lightTime);
+  const remPct = normalized.match(/sue[nñ]o\s*rem\s*[:\-]?\s*(\d{1,3})\s*%/i);
+  if (remPct) sleep.remPercent = Number(remPct[1]);
+  const remTime = normalized.match(/sue[nñ]o\s*rem[^\d]*(\d{1,2}\s*h(?:oras?)?\s*\d{1,2}\s*min?)/i);
+  if (remTime) sleep.rem = toDuration(remTime);
+  const awakenings = normalized.match(/despertaste\s*[:\-]?\s*(\d{1,2})\s*veces/i);
+  if (awakenings) sleep.awakenings = Number(awakenings[1]);
+  const deepContinuity = normalized.match(/continuidad\s*de\s*sue[nñ]o\s*profundo\s*[:\-]?\s*(\d{1,3})/i);
+  if (deepContinuity) sleep.deepContinuity = Number(deepContinuity[1]);
+  const breathingQuality = normalized.match(/calidad\s*de\s*(?:la\s*)?respiraci[oó]n\s*[:\-]?\s*(\d{1,3})/i);
+  if (breathingQuality) sleep.breathingQuality = Number(breathingQuality[1]);
+  return sleep;
+}
+
+function fillMovementFields(data) {
+  if (data.caloriesBurned !== undefined) progressFields.movementCaloriesBurned.value = data.caloriesBurned;
+  if (data.goalCalories !== undefined) progressFields.movementCaloriesGoal.value = data.goalCalories;
+  if (data.runPercent !== undefined) progressFields.movementRunPercent.value = data.runPercent;
+  if (data.walkPercent !== undefined) progressFields.movementWalkPercent.value = data.walkPercent;
+  if (data.bikePercent !== undefined) progressFields.movementBikePercent.value = data.bikePercent;
+  if (data.climbPercent !== undefined) progressFields.movementClimbPercent.value = data.climbPercent;
+  if (data.otherPercent !== undefined) progressFields.movementOtherPercent.value = data.otherPercent;
+}
+
+function fillSleepFields(data) {
+  if (data.score !== undefined) progressFields.sleepScore.value = data.score;
+  if (data.total !== undefined) progressFields.sleepTotal.value = data.total;
+  if (data.deep !== undefined) progressFields.sleepDeep.value = data.deep;
+  if (data.deepPercent !== undefined) progressFields.sleepDeepPercent.value = data.deepPercent;
+  if (data.light !== undefined) progressFields.sleepLight.value = data.light;
+  if (data.lightPercent !== undefined) progressFields.sleepLightPercent.value = data.lightPercent;
+  if (data.rem !== undefined) progressFields.sleepRem.value = data.rem;
+  if (data.remPercent !== undefined) progressFields.sleepRemPercent.value = data.remPercent;
+  if (data.awakenings !== undefined) progressFields.sleepAwakenings.value = data.awakenings;
+  if (data.deepContinuity !== undefined) progressFields.sleepDeepContinuity.value = data.deepContinuity;
+  if (data.breathingQuality !== undefined) progressFields.sleepBreathingQuality.value = data.breathingQuality;
 }
 
 function sortProgressLogDesc(entries) {
@@ -1892,6 +1983,48 @@ function bindProgressEvents() {
         updateImagePreview(preview, null);
       }
     });
+  });
+
+  progressFields.extractMovementButton?.addEventListener('click', async () => {
+    const [file] = progressFields.movementImage?.files || [];
+    if (!file) {
+      showStatus(progressFields.movementOcrStatus, 'Primero sube una imagen', 'warning');
+      return;
+    }
+    progressFields.extractMovementButton.disabled = true;
+    showStatus(progressFields.movementOcrStatus, 'Leyendo imagen...', 'warning');
+    try {
+      const text = await runOcrFromImage(file);
+      const data = extractMovementDataFromText(text);
+      fillMovementFields(data);
+      const detected = Object.keys(data).length;
+      showStatus(progressFields.movementOcrStatus, detected ? (detected >= 7 ? 'Datos extraídos' : 'No se pudieron detectar algunos datos') : 'No se detectaron datos', detected ? 'success' : 'warning');
+    } catch {
+      showStatus(progressFields.movementOcrStatus, 'No se pudo leer la imagen. Puedes completar los datos manualmente.', 'error');
+    } finally {
+      progressFields.extractMovementButton.disabled = false;
+    }
+  });
+
+  progressFields.extractSleepButton?.addEventListener('click', async () => {
+    const [file] = progressFields.sleepImage?.files || [];
+    if (!file) {
+      showStatus(progressFields.sleepOcrStatus, 'Primero sube una imagen', 'warning');
+      return;
+    }
+    progressFields.extractSleepButton.disabled = true;
+    showStatus(progressFields.sleepOcrStatus, 'Leyendo imagen...', 'warning');
+    try {
+      const text = await runOcrFromImage(file);
+      const data = extractSleepDataFromText(text);
+      fillSleepFields(data);
+      const detected = Object.keys(data).length;
+      showStatus(progressFields.sleepOcrStatus, detected ? (detected >= 11 ? 'Datos extraídos' : 'No se pudieron detectar algunos datos') : 'No se detectaron datos', detected ? 'success' : 'warning');
+    } catch {
+      showStatus(progressFields.sleepOcrStatus, 'No se pudo leer la imagen. Puedes completar los datos manualmente.', 'error');
+    } finally {
+      progressFields.extractSleepButton.disabled = false;
+    }
   });
 
   if (progressFields.exportTxt) {

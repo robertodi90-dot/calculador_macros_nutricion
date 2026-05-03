@@ -342,6 +342,16 @@ select:focus {
   gap: 8px;
 }
 
+.capture-actions {
+  display: grid;
+  gap: 4px;
+}
+
+.capture-status {
+  margin-top: 2px;
+  min-height: 1rem;
+}
+
 .hidden {
   display: none !important;
 }
