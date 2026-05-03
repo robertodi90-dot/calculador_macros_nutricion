@@ -1298,10 +1298,10 @@ function renderMeals() {
             <h2>${meal.name}</h2>
             <div class="meal-actions">
               <button type="button" class="secondary export-meal-button" data-meal-index="${mealIndex}">
-                Exportar comida
+                Descargar comida
               </button>
               <button type="button" class="secondary import-meal-button" data-meal-index="${mealIndex}">
-                Importar en esta comida
+                Cargar en esta comida
               </button>
               <button type="button" class="primary add-food-toggle" ${state.foodLibrary.length ? '' : 'disabled'}>
                 Agregar ingrediente
