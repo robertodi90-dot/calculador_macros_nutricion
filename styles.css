@@ -311,6 +311,37 @@ select:focus {
   background: var(--surface-alt);
 }
 
+.capture-section {
+  margin: 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px;
+  display: grid;
+  gap: 8px;
+  background: var(--card);
+}
+
+.capture-section legend {
+  padding: 0 6px;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.capture-preview {
+  width: 100%;
+  max-width: 220px;
+  max-height: 160px;
+  object-fit: cover;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.capture-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 8px;
+}
+
 .hidden {
   display: none !important;
 }

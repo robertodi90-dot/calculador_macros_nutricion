@@ -49,6 +49,28 @@ const progressFields = {
   bodyFat: document.getElementById('progressBodyFat'),
   calories: document.getElementById('progressCalories'),
   waist: document.getElementById('progressWaist'),
+  movementImage: document.getElementById('progressMovementImage'),
+  movementPreview: document.getElementById('progressMovementPreview'),
+  movementCaloriesBurned: document.getElementById('movementCaloriesBurned'),
+  movementCaloriesGoal: document.getElementById('movementCaloriesGoal'),
+  movementRunPercent: document.getElementById('movementRunPercent'),
+  movementWalkPercent: document.getElementById('movementWalkPercent'),
+  movementBikePercent: document.getElementById('movementBikePercent'),
+  movementClimbPercent: document.getElementById('movementClimbPercent'),
+  movementOtherPercent: document.getElementById('movementOtherPercent'),
+  sleepImage: document.getElementById('progressSleepImage'),
+  sleepPreview: document.getElementById('progressSleepPreview'),
+  sleepScore: document.getElementById('sleepScore'),
+  sleepTotal: document.getElementById('sleepTotal'),
+  sleepDeep: document.getElementById('sleepDeep'),
+  sleepDeepPercent: document.getElementById('sleepDeepPercent'),
+  sleepLight: document.getElementById('sleepLight'),
+  sleepLightPercent: document.getElementById('sleepLightPercent'),
+  sleepRem: document.getElementById('sleepRem'),
+  sleepRemPercent: document.getElementById('sleepRemPercent'),
+  sleepAwakenings: document.getElementById('sleepAwakenings'),
+  sleepDeepContinuity: document.getElementById('sleepDeepContinuity'),
+  sleepBreathingQuality: document.getElementById('sleepBreathingQuality'),
   error: document.getElementById('progressFormError'),
   status: document.getElementById('progressStatusMessage'),
   list: document.getElementById('progressLogList'),
@@ -190,6 +212,8 @@ function normalizeProgressLogEntry(rawEntry) {
   const bodyFat = toNumber(rawEntry.bodyFat);
   const calories = toNumber(rawEntry.calories);
   const waist = toNumber(rawEntry.waist);
+  const movement = rawEntry.movement && typeof rawEntry.movement === 'object' ? rawEntry.movement : {};
+  const sleep = rawEntry.sleep && typeof rawEntry.sleep === 'object' ? rawEntry.sleep : {};
 
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
   if (weight === null || weight <= 0) return null;
@@ -207,7 +231,51 @@ function normalizeProgressLogEntry(rawEntry) {
     bodyFat,
     calories,
     waist,
+    movementImage: typeof rawEntry.movementImage === 'string' ? rawEntry.movementImage : null,
+    sleepImage: typeof rawEntry.sleepImage === 'string' ? rawEntry.sleepImage : null,
+    movement: {
+      caloriesBurned: toNumber(movement.caloriesBurned),
+      goalCalories: toNumber(movement.goalCalories),
+      runPercent: toNumber(movement.runPercent),
+      walkPercent: toNumber(movement.walkPercent),
+      bikePercent: toNumber(movement.bikePercent),
+      climbPercent: toNumber(movement.climbPercent),
+      otherPercent: toNumber(movement.otherPercent),
+    },
+    sleep: {
+      score: toNumber(sleep.score),
+      total: typeof sleep.total === 'string' ? sleep.total.trim() : '',
+      deep: typeof sleep.deep === 'string' ? sleep.deep.trim() : '',
+      deepPercent: toNumber(sleep.deepPercent),
+      light: typeof sleep.light === 'string' ? sleep.light.trim() : '',
+      lightPercent: toNumber(sleep.lightPercent),
+      rem: typeof sleep.rem === 'string' ? sleep.rem.trim() : '',
+      remPercent: toNumber(sleep.remPercent),
+      awakenings: toNumber(sleep.awakenings),
+      deepContinuity: toNumber(sleep.deepContinuity),
+      breathingQuality: toNumber(sleep.breathingQuality),
+    },
   };
+}
+
+function updateImagePreview(imgEl, value) {
+  if (!imgEl) return;
+  if (!value) {
+    imgEl.classList.add('hidden');
+    imgEl.removeAttribute('src');
+    return;
+  }
+  imgEl.src = value;
+  imgEl.classList.remove('hidden');
+}
+
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : null);
+    reader.onerror = () => reject(new Error('No se pudo leer la imagen.'));
+    reader.readAsDataURL(file);
+  });
 }
 
 function sortProgressLogDesc(entries) {
@@ -1284,6 +1352,10 @@ function bindProgressListEvents() {
         bodyFat: nextBodyFat,
         calories: nextCalories,
         waist: nextWaist,
+        movementImage: entry.movementImage,
+        sleepImage: entry.sleepImage,
+        movement: entry.movement,
+        sleep: entry.sleep,
       });
 
       if (!updated) {
@@ -1430,15 +1502,36 @@ function exportProgressTxt() {
   }
 
   const lines = sortProgressLogDesc(state.progressLog).map((entry, index) => [
-    `Registro ${index + 1}`,
+    '=== REGISTRO DIARIO ===',
+    `Registro: ${index + 1}`,
     `Fecha: ${entry.date}`,
     `Peso: ${entry.weight} kg`,
     `Grasa corporal: ${entry.bodyFat === null ? 'no ingresado' : `${entry.bodyFat}%`}`,
-    `Calorías teóricas: ${entry.calories === null ? 'no ingresado' : `${entry.calories} kcal`}`,
-    `Cintura/estómago: ${entry.waist === null ? 'no ingresado' : `${entry.waist} cm`}`,
-    'Imagen de sueño: no adjuntado',
-    'Imagen de movimiento: no adjuntado',
-    'OCR: no ingresado',
+    `Calorías teóricas consumidas: ${entry.calories === null ? 'no ingresado' : `${entry.calories} kcal`}`,
+    `Medida cintura/estómago: ${entry.waist === null ? 'no ingresado' : `${entry.waist} cm`}`,
+    '',
+    '--- MOVIMIENTO ---',
+    `Calorías gastadas: ${toMissingTextValue(entry.movement?.caloriesBurned)}${entry.movement?.caloriesBurned === null ? '' : ' kcal'}`,
+    `Objetivo movimiento: ${toMissingTextValue(entry.movement?.goalCalories)}${entry.movement?.goalCalories === null ? '' : ' kcal'}`,
+    'Desglose:',
+    `- Correr: ${toMissingTextValue(entry.movement?.runPercent)}${entry.movement?.runPercent === null ? '' : '%'}`,
+    `- Caminar: ${toMissingTextValue(entry.movement?.walkPercent)}${entry.movement?.walkPercent === null ? '' : '%'}`,
+    `- Bicicleta: ${toMissingTextValue(entry.movement?.bikePercent)}${entry.movement?.bikePercent === null ? '' : '%'}`,
+    `- Subir: ${toMissingTextValue(entry.movement?.climbPercent)}${entry.movement?.climbPercent === null ? '' : '%'}`,
+    `- Otras: ${toMissingTextValue(entry.movement?.otherPercent)}${entry.movement?.otherPercent === null ? '' : '%'}`,
+    '',
+    '--- SUEÑO ---',
+    `Puntaje sueño: ${toMissingTextValue(entry.sleep?.score)}${entry.sleep?.score === null ? '' : ' puntos'}`,
+    `Horas de sueño: ${toMissingTextValue(entry.sleep?.total)}`,
+    `Sueño profundo: ${toMissingTextValue(entry.sleep?.deep)} / ${toMissingTextValue(entry.sleep?.deepPercent)}${entry.sleep?.deepPercent === null ? '' : '%'}`,
+    `Sueño liviano: ${toMissingTextValue(entry.sleep?.light)} / ${toMissingTextValue(entry.sleep?.lightPercent)}${entry.sleep?.lightPercent === null ? '' : '%'}`,
+    `Sueño REM: ${toMissingTextValue(entry.sleep?.rem)} / ${toMissingTextValue(entry.sleep?.remPercent)}${entry.sleep?.remPercent === null ? '' : '%'}`,
+    `Despertares: ${toMissingTextValue(entry.sleep?.awakenings)}${entry.sleep?.awakenings === null ? '' : ' veces'}`,
+    `Continuidad sueño profundo: ${toMissingTextValue(entry.sleep?.deepContinuity)}${entry.sleep?.deepContinuity === null ? '' : ' puntos'}`,
+    `Calidad de respiración: ${toMissingTextValue(entry.sleep?.breathingQuality)}`,
+    '',
+    '--- NOTA PARA CHATGPT ---',
+    'Este bloque contiene datos diarios de nutrición, movimiento y sueño para análisis de recuperación, gasto energético, descanso y evolución corporal.',
   ].join('\n'));
 
   const blob = new Blob([`\ufeff${lines.join('\n\n')}`], {
@@ -1474,9 +1567,10 @@ function exportProgressJson() {
       bodyFat: entry.bodyFat,
       calories: entry.calories,
       waist: entry.waist ?? null,
-      sleepImage: null,
-      movementImage: null,
-      ocrData: null,
+      sleepImage: entry.sleepImage ?? null,
+      movementImage: entry.movementImage ?? null,
+      movement: entry.movement,
+      sleep: entry.sleep,
     })),
   };
 
@@ -1731,6 +1825,30 @@ function bindProgressEvents() {
         bodyFat: progressFields.bodyFat.value,
         calories: progressFields.calories.value,
         waist: progressFields.waist.value,
+        movementImage: progressFields.movementPreview?.src || null,
+        sleepImage: progressFields.sleepPreview?.src || null,
+        movement: {
+          caloriesBurned: progressFields.movementCaloriesBurned.value,
+          goalCalories: progressFields.movementCaloriesGoal.value,
+          runPercent: progressFields.movementRunPercent.value,
+          walkPercent: progressFields.movementWalkPercent.value,
+          bikePercent: progressFields.movementBikePercent.value,
+          climbPercent: progressFields.movementClimbPercent.value,
+          otherPercent: progressFields.movementOtherPercent.value,
+        },
+        sleep: {
+          score: progressFields.sleepScore.value,
+          total: progressFields.sleepTotal.value,
+          deep: progressFields.sleepDeep.value,
+          deepPercent: progressFields.sleepDeepPercent.value,
+          light: progressFields.sleepLight.value,
+          lightPercent: progressFields.sleepLightPercent.value,
+          rem: progressFields.sleepRem.value,
+          remPercent: progressFields.sleepRemPercent.value,
+          awakenings: progressFields.sleepAwakenings.value,
+          deepContinuity: progressFields.sleepDeepContinuity.value,
+          breathingQuality: progressFields.sleepBreathingQuality.value,
+        },
     });
 
     if (!progressFields.date.value) {
@@ -1747,9 +1865,33 @@ function bindProgressEvents() {
     saveProgressLog();
 
     progressFields.form.reset();
+    updateImagePreview(progressFields.movementPreview, null);
+    updateImagePreview(progressFields.sleepPreview, null);
     progressFields.error.textContent = '';
     renderProgressLog();
     showProgressStatus('Registro guardado correctamente.', 'success');
+  });
+
+  const imageHandlers = [
+    { input: progressFields.movementImage, preview: progressFields.movementPreview },
+    { input: progressFields.sleepImage, preview: progressFields.sleepPreview },
+  ];
+
+  imageHandlers.forEach(({ input, preview }) => {
+    if (!input || !preview) return;
+    input.addEventListener('change', async () => {
+      const [file] = input.files || [];
+      if (!file) {
+        updateImagePreview(preview, null);
+        return;
+      }
+      try {
+        const dataUrl = await fileToDataUrl(file);
+        updateImagePreview(preview, dataUrl);
+      } catch {
+        updateImagePreview(preview, null);
+      }
+    });
   });
 
   if (progressFields.exportTxt) {

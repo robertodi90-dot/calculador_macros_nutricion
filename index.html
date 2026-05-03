@@ -229,6 +229,78 @@
                 />
               </label>
 
+              <fieldset class="capture-section">
+                <legend>Captura de movimiento</legend>
+                <label for="progressMovementImage">
+                  Imagen de movimiento <span class="optional-mark">(opcional)</span>
+                  <input id="progressMovementImage" name="movementImage" type="file" accept="image/*" />
+                </label>
+                <img id="progressMovementPreview" class="capture-preview hidden" alt="Vista previa de movimiento" />
+                <div class="capture-grid">
+                  <label for="movementCaloriesBurned">
+                    Calorías gastadas (kcal)
+                    <input id="movementCaloriesBurned" name="movementCaloriesBurned" type="number" min="0" step="1" inputmode="numeric" />
+                  </label>
+                  <label for="movementCaloriesGoal">
+                    Objetivo movimiento (kcal)
+                    <input id="movementCaloriesGoal" name="movementCaloriesGoal" type="number" min="0" step="1" inputmode="numeric" />
+                  </label>
+                  <label for="movementRunPercent">
+                    Correr (%)
+                    <input id="movementRunPercent" name="movementRunPercent" type="number" min="0" max="100" step="1" inputmode="numeric" />
+                  </label>
+                  <label for="movementWalkPercent">
+                    Caminar (%)
+                    <input id="movementWalkPercent" name="movementWalkPercent" type="number" min="0" max="100" step="1" inputmode="numeric" />
+                  </label>
+                  <label for="movementBikePercent">
+                    Bicicleta (%)
+                    <input id="movementBikePercent" name="movementBikePercent" type="number" min="0" max="100" step="1" inputmode="numeric" />
+                  </label>
+                  <label for="movementClimbPercent">
+                    Subir (%)
+                    <input id="movementClimbPercent" name="movementClimbPercent" type="number" min="0" max="100" step="1" inputmode="numeric" />
+                  </label>
+                  <label for="movementOtherPercent">
+                    Otras (%)
+                    <input id="movementOtherPercent" name="movementOtherPercent" type="number" min="0" max="100" step="1" inputmode="numeric" />
+                  </label>
+                </div>
+              </fieldset>
+
+              <fieldset class="capture-section">
+                <legend>Captura de sueño</legend>
+                <label for="progressSleepImage">
+                  Imagen de sueño <span class="optional-mark">(opcional)</span>
+                  <input id="progressSleepImage" name="sleepImage" type="file" accept="image/*" />
+                </label>
+                <img id="progressSleepPreview" class="capture-preview hidden" alt="Vista previa de sueño" />
+                <div class="capture-grid">
+                  <label for="sleepScore">Puntaje sueño</label>
+                  <input id="sleepScore" name="sleepScore" type="number" min="0" step="1" inputmode="numeric" />
+                  <label for="sleepTotal">Horas de sueño (ej: 7 h 14 min)</label>
+                  <input id="sleepTotal" name="sleepTotal" type="text" />
+                  <label for="sleepDeep">Sueño profundo (duración)</label>
+                  <input id="sleepDeep" name="sleepDeep" type="text" />
+                  <label for="sleepDeepPercent">Sueño profundo (%)</label>
+                  <input id="sleepDeepPercent" name="sleepDeepPercent" type="number" min="0" max="100" step="1" inputmode="numeric" />
+                  <label for="sleepLight">Sueño liviano (duración)</label>
+                  <input id="sleepLight" name="sleepLight" type="text" />
+                  <label for="sleepLightPercent">Sueño liviano (%)</label>
+                  <input id="sleepLightPercent" name="sleepLightPercent" type="number" min="0" max="100" step="1" inputmode="numeric" />
+                  <label for="sleepRem">Sueño REM (duración)</label>
+                  <input id="sleepRem" name="sleepRem" type="text" />
+                  <label for="sleepRemPercent">Sueño REM (%)</label>
+                  <input id="sleepRemPercent" name="sleepRemPercent" type="number" min="0" max="100" step="1" inputmode="numeric" />
+                  <label for="sleepAwakenings">Despertares (veces)</label>
+                  <input id="sleepAwakenings" name="sleepAwakenings" type="number" min="0" step="1" inputmode="numeric" />
+                  <label for="sleepDeepContinuity">Continuidad sueño profundo</label>
+                  <input id="sleepDeepContinuity" name="sleepDeepContinuity" type="number" min="0" step="1" inputmode="numeric" />
+                  <label for="sleepBreathingQuality">Calidad respiración</label>
+                  <input id="sleepBreathingQuality" name="sleepBreathingQuality" type="number" min="0" step="1" inputmode="numeric" />
+                </div>
+              </fieldset>
+
               <p id="progressFormError" class="form-error" aria-live="polite"></p>
               <button type="submit" class="primary">Guardar registro</button>
             </form>
