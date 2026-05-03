@@ -45,10 +45,8 @@ const libraryFields = {
 const progressFields = {
   form: document.getElementById('progressLogForm'),
   date: document.getElementById('progressDate'),
-  activityDate: document.getElementById('progressActivityDate'),
   weight: document.getElementById('progressWeight'),
   bodyFat: document.getElementById('progressBodyFat'),
-  calories: document.getElementById('progressCalories'),
   waist: document.getElementById('progressWaist'),
   movementImage: document.getElementById('progressMovementImage'),
   movementPreview: document.getElementById('progressMovementPreview'),
@@ -61,11 +59,8 @@ const progressFields = {
   sleepOcrStatus: document.getElementById('sleepOcrStatus'),
   sleepScore: document.getElementById('sleepScore'),
   sleepTotal: document.getElementById('sleepTotal'),
-  sleepDeep: document.getElementById('sleepDeep'),
   sleepDeepPercent: document.getElementById('sleepDeepPercent'),
-  sleepLight: document.getElementById('sleepLight'),
   sleepLightPercent: document.getElementById('sleepLightPercent'),
-  sleepRem: document.getElementById('sleepRem'),
   sleepRemPercent: document.getElementById('sleepRemPercent'),
   sleepAwakenings: document.getElementById('sleepAwakenings'),
   sleepDeepContinuity: document.getElementById('sleepDeepContinuity'),
@@ -371,18 +366,6 @@ function calculateSleepStageDuration(totalSleepValue, percentageValue) {
   return minutesToSleepDuration((totalMinutes * stagePercent) / 100);
 }
 
-function recalculateSleepStageDurations() {
-  const totalSleepValue = progressFields.sleepTotal?.value;
-  if (!totalSleepValue) return;
-
-  const deepDuration = calculateSleepStageDuration(totalSleepValue, progressFields.sleepDeepPercent?.value);
-  const lightDuration = calculateSleepStageDuration(totalSleepValue, progressFields.sleepLightPercent?.value);
-  const remDuration = calculateSleepStageDuration(totalSleepValue, progressFields.sleepRemPercent?.value);
-
-  if (deepDuration) progressFields.sleepDeep.value = deepDuration;
-  if (lightDuration) progressFields.sleepLight.value = lightDuration;
-  if (remDuration) progressFields.sleepRem.value = remDuration;
-}
 
 function extractSleepDataFromText(text) {
   const rawText = String(text || '');
@@ -427,16 +410,12 @@ function fillMovementFields(data) {
 function fillSleepFields(data) {
   if (data.score !== undefined) progressFields.sleepScore.value = data.score;
   if (data.total !== undefined) progressFields.sleepTotal.value = data.total;
-  if (data.deep !== undefined) progressFields.sleepDeep.value = data.deep;
   if (data.deepPercent !== undefined) progressFields.sleepDeepPercent.value = data.deepPercent;
-  if (data.light !== undefined) progressFields.sleepLight.value = data.light;
   if (data.lightPercent !== undefined) progressFields.sleepLightPercent.value = data.lightPercent;
-  if (data.rem !== undefined) progressFields.sleepRem.value = data.rem;
   if (data.remPercent !== undefined) progressFields.sleepRemPercent.value = data.remPercent;
   if (data.awakenings !== undefined) progressFields.sleepAwakenings.value = data.awakenings;
   if (data.deepContinuity !== undefined) progressFields.sleepDeepContinuity.value = data.deepContinuity;
   if (data.breathingQuality !== undefined) progressFields.sleepBreathingQuality.value = data.breathingQuality;
-  recalculateSleepStageDurations();
 }
 
 function sortProgressLogDesc(entries) {
@@ -1106,7 +1085,7 @@ function progressItemHtml(entry) {
         </div>
       </div>
       <p class="food-meta">
-        Peso: ${entry.weight.toFixed(1)} kg · Grasa: ${entry.bodyFat === null ? 'no ingresado' : `${entry.bodyFat.toFixed(1)}%`} · Calorías teóricas: ${entry.calories === null ? 'no ingresado' : `${Math.round(entry.calories)} kcal`} · Cintura/estómago: ${entry.waist === null ? 'no ingresado' : `${entry.waist.toFixed(1)} cm`}
+        Peso: ${entry.weight.toFixed(1)} kg · Grasa: ${entry.bodyFat === null ? 'no ingresado' : `${entry.bodyFat.toFixed(1)}%`} · Cintura/estómago: ${entry.waist === null ? 'no ingresado' : `${entry.waist.toFixed(1)} cm`}
       </p>
     </li>
   `;
@@ -1663,11 +1642,6 @@ function formatDateMinusOne(dateValue) {
   return utcDate.toISOString().slice(0, 10);
 }
 
-function resolveActivityDate(entry) {
-  if (entry?.activityDate && /^\d{4}-\d{2}-\d{2}$/.test(entry.activityDate)) return entry.activityDate;
-  return formatDateMinusOne(entry?.date);
-}
-
 function toMissingTextValue(value) {
   return value === null || value === undefined || value === '' ? 'no ingresado' : value;
 }
@@ -1697,14 +1671,12 @@ function buildProgressTxtLines(entries) {
     '=== REGISTRO DIARIO ===',
     `Registro: ${index + 1}`,
     `Fecha del registro: ${entry.date}`,
-    `Fecha de alimentación / actividad: ${resolveActivityDate(entry) || 'no ingresado'}`,
     '',
-    `--- BIOMÉTRICOS DEL ${entry.date} ---`,
+    '--- BIOMÉTRICOS ---',
     `Peso: ${entry.weight} kg`,
     `Grasa corporal: ${entry.bodyFat === null ? 'no ingresado' : `${entry.bodyFat}%`}`,
     `Medida cintura/estómago: ${entry.waist === null ? 'no ingresado' : `${entry.waist} cm`}`,
     '',
-    `--- ALIMENTACIÓN DEL ${resolveActivityDate(entry) || 'día no ingresado'} ---`,
     '--- ALIMENTACIÓN / RESUMEN DIARIO ---',
     `Proteínas: ${entry.nutritionSummary?.proteinGrams === null || entry.nutritionSummary?.proteinGrams === undefined ? 'no registrado' : `${entry.nutritionSummary.proteinGrams.toFixed(1)} g`}`,
     `Carbohidratos: ${entry.nutritionSummary?.carbsGrams === null || entry.nutritionSummary?.carbsGrams === undefined ? 'no registrado' : `${entry.nutritionSummary.carbsGrams.toFixed(1)} g`}`,
@@ -1717,15 +1689,15 @@ function buildProgressTxtLines(entries) {
     `Carbohidratos por kg: ${entry.nutritionSummary?.carbsPerKg === null || entry.nutritionSummary?.carbsPerKg === undefined ? 'no registrado' : `${entry.nutritionSummary.carbsPerKg.toFixed(2)} g/kg`}`,
     `Grasas por kg: ${entry.nutritionSummary?.fatPerKg === null || entry.nutritionSummary?.fatPerKg === undefined ? 'no registrado' : `${entry.nutritionSummary.fatPerKg.toFixed(2)} g/kg`}`,
     '',
-    `--- MOVIMIENTO DEL ${resolveActivityDate(entry) || 'día no ingresado'} ---`,
+    '--- MOVIMIENTO ---',
     `Calorías gastadas: ${toMissingTextValue(entry.movement?.caloriesBurned)}${entry.movement?.caloriesBurned === null ? '' : ' kcal'}`,
     '',
-    `--- SUEÑO NOCHE ${resolveActivityDate(entry) || 'día no ingresado'} → ${entry.date} ---`,
+    '--- SUEÑO ---',
     `Puntaje sueño: ${toMissingTextValue(entry.sleep?.score)}${entry.sleep?.score === null ? '' : ' puntos'}`,
     `Horas de sueño: ${toMissingTextValue(entry.sleep?.total)}`,
-    `Sueño profundo: ${toMissingTextValue(entry.sleep?.deep)} / ${toMissingTextValue(entry.sleep?.deepPercent)}${entry.sleep?.deepPercent === null ? '' : '%'}`,
-    `Sueño liviano: ${toMissingTextValue(entry.sleep?.light)} / ${toMissingTextValue(entry.sleep?.lightPercent)}${entry.sleep?.lightPercent === null ? '' : '%'}`,
-    `Sueño REM: ${toMissingTextValue(entry.sleep?.rem)} / ${toMissingTextValue(entry.sleep?.remPercent)}${entry.sleep?.remPercent === null ? '' : '%'}`,
+    `Sueño profundo: ${toMissingTextValue(calculateSleepStageDuration(entry.sleep?.total, entry.sleep?.deepPercent))} / ${toMissingTextValue(entry.sleep?.deepPercent)}${entry.sleep?.deepPercent === null ? '' : '%'}`,
+    `Sueño liviano: ${toMissingTextValue(calculateSleepStageDuration(entry.sleep?.total, entry.sleep?.lightPercent))} / ${toMissingTextValue(entry.sleep?.lightPercent)}${entry.sleep?.lightPercent === null ? '' : '%'}`,
+    `Sueño REM: ${toMissingTextValue(calculateSleepStageDuration(entry.sleep?.total, entry.sleep?.remPercent))} / ${toMissingTextValue(entry.sleep?.remPercent)}${entry.sleep?.remPercent === null ? '' : '%'}`,
     `Despertares: ${toMissingTextValue(entry.sleep?.awakenings)}${entry.sleep?.awakenings === null ? '' : ' veces'}`,
     `Continuidad sueño profundo: ${toMissingTextValue(entry.sleep?.deepContinuity)}${entry.sleep?.deepContinuity === null ? '' : ' puntos'}`,
     `Calidad de respiración: ${toMissingTextValue(entry.sleep?.breathingQuality)}`,
@@ -2036,33 +2008,14 @@ function bindProgressEvents() {
   if (!progressFields.form) return;
 
 
-  let isActivityDateManual = false;
-
-  const syncActivityDateFromRegistrationDate = () => {
-    if (!progressFields.activityDate) return;
-    if (isActivityDateManual && progressFields.activityDate.value) return;
-    progressFields.activityDate.value = formatDateMinusOne(progressFields.date.value);
-  };
-
-  progressFields.date?.addEventListener('change', () => {
-    syncActivityDateFromRegistrationDate();
-  });
-
-  progressFields.activityDate?.addEventListener('input', () => {
-    const expectedAutoValue = formatDateMinusOne(progressFields.date.value);
-    isActivityDateManual = progressFields.activityDate.value !== '' && progressFields.activityDate.value !== expectedAutoValue;
-  });
-
   progressFields.form.addEventListener('submit', (event) => {
     event.preventDefault();
 
     const entry = normalizeProgressLogEntry({
       id: createLogId(),
       date: progressFields.date.value,
-        activityDate: progressFields.activityDate.value,
         weight: progressFields.weight.value,
         bodyFat: progressFields.bodyFat.value,
-        calories: progressFields.calories.value,
         waist: progressFields.waist.value,
         movementImage: progressFields.movementPreview?.src || null,
         sleepImage: progressFields.sleepPreview?.src || null,
@@ -2072,11 +2025,8 @@ function bindProgressEvents() {
         sleep: {
           score: progressFields.sleepScore.value,
           total: progressFields.sleepTotal.value,
-          deep: progressFields.sleepDeep.value,
           deepPercent: progressFields.sleepDeepPercent.value,
-          light: progressFields.sleepLight.value,
           lightPercent: progressFields.sleepLightPercent.value,
-          rem: progressFields.sleepRem.value,
           remPercent: progressFields.sleepRemPercent.value,
           awakenings: progressFields.sleepAwakenings.value,
           deepContinuity: progressFields.sleepDeepContinuity.value,
@@ -2099,7 +2049,6 @@ function bindProgressEvents() {
     saveProgressLog();
 
     progressFields.form.reset();
-    isActivityDateManual = false;
     updateImagePreview(progressFields.movementPreview, null);
     updateImagePreview(progressFields.sleepPreview, null);
     progressFields.error.textContent = '';
@@ -2171,18 +2120,6 @@ function bindProgressEvents() {
     }
   });
 
-  const sleepAutoCalculationInputs = [
-    progressFields.sleepTotal,
-    progressFields.sleepDeepPercent,
-    progressFields.sleepLightPercent,
-    progressFields.sleepRemPercent,
-  ];
-
-  ['input', 'change'].forEach((eventName) => {
-    sleepAutoCalculationInputs.forEach((field) => {
-      field?.addEventListener(eventName, recalculateSleepStageDurations);
-    });
-  });
 
   if (progressFields.exportTxt) {
     progressFields.exportTxt.addEventListener('click', exportProgressTxt);
