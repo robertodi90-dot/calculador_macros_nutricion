@@ -2529,6 +2529,12 @@ registerServiceWorker();
 bindLibraryEvents();
 bindProgressEvents();
 initCollapsibleSection(
+  'toggleSavedFoodsButton',
+  'savedFoodsPanel',
+  'Mostrar alimentos guardados',
+  'Ocultar alimentos guardados'
+);
+initCollapsibleSection(
   'toggleHistoryButton',
   'historyPanel',
   'Mostrar historial',
