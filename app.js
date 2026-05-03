@@ -45,6 +45,7 @@ const libraryFields = {
 const progressFields = {
   form: document.getElementById('progressLogForm'),
   date: document.getElementById('progressDate'),
+  activityDate: document.getElementById('progressActivityDate'),
   weight: document.getElementById('progressWeight'),
   bodyFat: document.getElementById('progressBodyFat'),
   calories: document.getElementById('progressCalories'),
@@ -207,6 +208,8 @@ function normalizeProgressLogEntry(rawEntry) {
   if (!rawEntry || typeof rawEntry !== 'object') return null;
 
   const date = typeof rawEntry.date === 'string' ? rawEntry.date.trim() : '';
+  const activityDateRaw = typeof rawEntry.activityDate === 'string' ? rawEntry.activityDate.trim() : '';
+  const activityDate = /^\d{4}-\d{2}-\d{2}$/.test(activityDateRaw) ? activityDateRaw : null;
   const weight = toNumber(rawEntry.weight);
   const bodyFat = toNumber(rawEntry.bodyFat);
   const calories = toNumber(rawEntry.calories);
@@ -226,6 +229,7 @@ function normalizeProgressLogEntry(rawEntry) {
         ? rawEntry.id
         : createLogId(),
     date,
+    activityDate,
     weight,
     bodyFat,
     calories,
@@ -1203,6 +1207,7 @@ function renderProgressCharts() {
     .sort((a, b) => a.date.localeCompare(b.date))
     .map((entry) => ({
       date: entry.date,
+      activityDate: entry.activityDate ?? null,
       weight: entry.weight,
       bodyFat: entry.bodyFat,
       calories: entry.calories,
@@ -1630,6 +1635,20 @@ function handleImportFile(file) {
   reader.readAsText(file);
 }
 
+function formatDateMinusOne(dateValue) {
+  const raw = String(dateValue || '').trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return '';
+  const [year, month, day] = raw.split('-').map(Number);
+  const utcDate = new Date(Date.UTC(year, month - 1, day));
+  utcDate.setUTCDate(utcDate.getUTCDate() - 1);
+  return utcDate.toISOString().slice(0, 10);
+}
+
+function resolveActivityDate(entry) {
+  if (entry?.activityDate && /^\d{4}-\d{2}-\d{2}$/.test(entry.activityDate)) return entry.activityDate;
+  return formatDateMinusOne(entry?.date);
+}
+
 function toMissingTextValue(value) {
   return value === null || value === undefined || value === '' ? 'no ingresado' : value;
 }
@@ -1638,16 +1657,24 @@ function buildProgressTxtLines(entries) {
   return sortProgressLogDesc(entries).map((entry, index) => [
     '=== REGISTRO DIARIO ===',
     `Registro: ${index + 1}`,
-    `Fecha: ${entry.date}`,
+    `Fecha del registro: ${entry.date}`,
+    `Fecha de alimentación / actividad: ${resolveActivityDate(entry) || 'no ingresado'}`,
+    '',
+    `--- BIOMÉTRICOS DEL ${entry.date} ---`,
     `Peso: ${entry.weight} kg`,
     `Grasa corporal: ${entry.bodyFat === null ? 'no ingresado' : `${entry.bodyFat}%`}`,
-    `Calorías teóricas consumidas: ${entry.calories === null ? 'no ingresado' : `${entry.calories} kcal`}`,
     `Medida cintura/estómago: ${entry.waist === null ? 'no ingresado' : `${entry.waist} cm`}`,
     '',
-    '--- MOVIMIENTO ---',
+    `--- ALIMENTACIÓN DEL ${resolveActivityDate(entry) || 'día no ingresado'} ---`,
+    `Calorías consumidas: ${entry.calories === null ? 'no ingresado' : `${entry.calories} kcal`}`,
+    `Proteínas: no ingresado`,
+    `Carbohidratos: no ingresado`,
+    `Grasas: no ingresado`,
+    '',
+    `--- MOVIMIENTO DEL ${resolveActivityDate(entry) || 'día no ingresado'} ---`,
     `Calorías gastadas: ${toMissingTextValue(entry.movement?.caloriesBurned)}${entry.movement?.caloriesBurned === null ? '' : ' kcal'}`,
     '',
-    '--- SUEÑO ---',
+    `--- SUEÑO NOCHE ${resolveActivityDate(entry) || 'día no ingresado'} → ${entry.date} ---`,
     `Puntaje sueño: ${toMissingTextValue(entry.sleep?.score)}${entry.sleep?.score === null ? '' : ' puntos'}`,
     `Horas de sueño: ${toMissingTextValue(entry.sleep?.total)}`,
     `Sueño profundo: ${toMissingTextValue(entry.sleep?.deep)} / ${toMissingTextValue(entry.sleep?.deepPercent)}${entry.sleep?.deepPercent === null ? '' : '%'}`,
@@ -1708,6 +1735,7 @@ function exportProgressJson() {
     progressLog: sortProgressLogDesc(state.progressLog).map((entry) => ({
       id: entry.id,
       date: entry.date,
+      activityDate: entry.activityDate ?? null,
       weight: entry.weight,
       bodyFat: entry.bodyFat,
       calories: entry.calories,
@@ -1960,12 +1988,31 @@ function bindLibraryEvents() {
 function bindProgressEvents() {
   if (!progressFields.form) return;
 
+
+  let isActivityDateManual = false;
+
+  const syncActivityDateFromRegistrationDate = () => {
+    if (!progressFields.activityDate) return;
+    if (isActivityDateManual && progressFields.activityDate.value) return;
+    progressFields.activityDate.value = formatDateMinusOne(progressFields.date.value);
+  };
+
+  progressFields.date?.addEventListener('change', () => {
+    syncActivityDateFromRegistrationDate();
+  });
+
+  progressFields.activityDate?.addEventListener('input', () => {
+    const expectedAutoValue = formatDateMinusOne(progressFields.date.value);
+    isActivityDateManual = progressFields.activityDate.value !== '' && progressFields.activityDate.value !== expectedAutoValue;
+  });
+
   progressFields.form.addEventListener('submit', (event) => {
     event.preventDefault();
 
     const entry = normalizeProgressLogEntry({
       id: createLogId(),
       date: progressFields.date.value,
+        activityDate: progressFields.activityDate.value,
         weight: progressFields.weight.value,
         bodyFat: progressFields.bodyFat.value,
         calories: progressFields.calories.value,
@@ -2004,6 +2051,7 @@ function bindProgressEvents() {
     saveProgressLog();
 
     progressFields.form.reset();
+    isActivityDateManual = false;
     updateImagePreview(progressFields.movementPreview, null);
     updateImagePreview(progressFields.sleepPreview, null);
     progressFields.error.textContent = '';
