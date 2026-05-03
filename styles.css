@@ -171,6 +171,17 @@ label {
   font-size: 0.95rem;
 }
 
+.required-mark {
+  color: var(--error);
+  font-size: 0.85em;
+}
+
+.optional-mark {
+  color: var(--muted);
+  font-size: 0.85em;
+  font-weight: 500;
+}
+
 input,
 select {
   width: 100%;

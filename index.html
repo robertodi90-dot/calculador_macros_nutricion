@@ -169,12 +169,12 @@
 
             <form id="progressLogForm" class="add-food-form" novalidate>
               <label for="progressDate">
-                Fecha
+                Fecha <span class="required-mark">(obligatorio)</span>
                 <input id="progressDate" name="date" type="date" required />
               </label>
 
               <label for="progressWeight">
-                Peso
+                Peso <span class="required-mark">(obligatorio)</span>
                 <input
                   id="progressWeight"
                   name="weight"
@@ -188,7 +188,7 @@
               </label>
 
               <label for="progressBodyFat">
-                Grasa corporal (%)
+                Grasa corporal (%) <span class="optional-mark">(opcional)</span>
                 <input
                   id="progressBodyFat"
                   name="bodyFat"
@@ -197,12 +197,11 @@
                   step="0.1"
                   inputmode="decimal"
                   placeholder="Ej: 18.2"
-                  required
                 />
               </label>
 
               <label for="progressCalories">
-                Calorías teóricas consumidas
+                Calorías teóricas consumidas <span class="optional-mark">(opcional)</span>
                 <input
                   id="progressCalories"
                   name="calories"
@@ -211,7 +210,19 @@
                   step="1"
                   inputmode="numeric"
                   placeholder="Ej: 2150"
-                  required
+                />
+              </label>
+
+              <label for="progressWaist">
+                Medida cintura/estómago (cm) <span class="optional-mark">(opcional)</span>
+                <input
+                  id="progressWaist"
+                  name="waist"
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  inputmode="decimal"
+                  placeholder="Ej: 86.5"
                 />
               </label>
 
@@ -220,8 +231,11 @@
             </form>
 
             <div class="library-actions">
-              <button id="exportProgressCsvButton" type="button" class="secondary">
-                Exportar registros
+              <button id="exportProgressTxtButton" type="button" class="secondary">
+                Exportar registros TXT
+              </button>
+              <button id="exportProgressJsonButton" type="button" class="secondary">
+                Exportar registros JSON
               </button>
               <button id="importProgressButton" type="button" class="secondary">
                 Importar registros

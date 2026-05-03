@@ -45,10 +45,12 @@ const progressFields = {
   weight: document.getElementById('progressWeight'),
   bodyFat: document.getElementById('progressBodyFat'),
   calories: document.getElementById('progressCalories'),
+  waist: document.getElementById('progressWaist'),
   error: document.getElementById('progressFormError'),
   status: document.getElementById('progressStatusMessage'),
   list: document.getElementById('progressLogList'),
-  exportCsv: document.getElementById('exportProgressCsvButton'),
+  exportTxt: document.getElementById('exportProgressTxtButton'),
+  exportJson: document.getElementById('exportProgressJsonButton'),
   importButton: document.getElementById('importProgressButton'),
   importInput: document.getElementById('progressImportInput'),
   charts: {
@@ -184,11 +186,13 @@ function normalizeProgressLogEntry(rawEntry) {
   const weight = toNumber(rawEntry.weight);
   const bodyFat = toNumber(rawEntry.bodyFat);
   const calories = toNumber(rawEntry.calories);
+  const waist = toNumber(rawEntry.waist);
 
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
   if (weight === null || weight <= 0) return null;
-  if (bodyFat === null || bodyFat < 0) return null;
-  if (calories === null || calories < 0) return null;
+  if (bodyFat !== null && bodyFat < 0) return null;
+  if (calories !== null && calories < 0) return null;
+  if (waist !== null && waist < 0) return null;
 
   return {
     id:
@@ -199,6 +203,7 @@ function normalizeProgressLogEntry(rawEntry) {
     weight,
     bodyFat,
     calories,
+    waist,
   };
 }
 
@@ -869,7 +874,7 @@ function progressItemHtml(entry) {
         </div>
       </div>
       <p class="food-meta">
-        Peso: ${entry.weight.toFixed(1)} kg · Grasa: ${entry.bodyFat.toFixed(1)}% · Calorías teóricas: ${Math.round(entry.calories)} kcal
+        Peso: ${entry.weight.toFixed(1)} kg · Grasa: ${entry.bodyFat === null ? 'no ingresado' : `${entry.bodyFat.toFixed(1)}%`} · Calorías teóricas: ${entry.calories === null ? 'no ingresado' : `${Math.round(entry.calories)} kcal`} · Cintura/estómago: ${entry.waist === null ? 'no ingresado' : `${entry.waist.toFixed(1)} cm`}
       </p>
     </li>
   `;
@@ -1003,16 +1008,19 @@ function renderProgressCharts() {
   drawLineChart(
     progressFields.charts.bodyFat,
     progressFields.chartEmpty.bodyFat,
-    chartData.map((point) => ({ date: point.date, value: point.bodyFat })),
+    chartData
+      .filter((point) => point.bodyFat !== null)
+      .map((point) => ({ date: point.date, value: point.bodyFat })),
     'Grasa corporal'
   );
 
-  const baseLeanMass = chartData[0]?.weight * (1 - chartData[0]?.bodyFat / 100);
+  const leanMassData = chartData.filter((point) => point.bodyFat !== null);
+  const baseLeanMass = leanMassData[0]?.weight * (1 - leanMassData[0]?.bodyFat / 100);
 
   drawLineChart(
     progressFields.charts.leanMassGain,
     progressFields.chartEmpty.leanMassGain,
-    chartData.map((point) => ({
+    leanMassData.map((point) => ({
       date: point.date,
       value: point.weight * (1 - point.bodyFat / 100) - baseLeanMass,
     })),
@@ -1252,14 +1260,16 @@ function bindProgressListEvents() {
 
       const nextDate = prompt('Editar fecha (YYYY-MM-DD)', entry.date);
       const nextWeight = prompt('Editar peso', String(entry.weight));
-      const nextBodyFat = prompt('Editar grasa corporal %', String(entry.bodyFat));
-      const nextCalories = prompt('Editar calorías teóricas', String(entry.calories));
+      const nextBodyFat = prompt('Editar grasa corporal % (opcional)', entry.bodyFat === null ? '' : String(entry.bodyFat));
+      const nextCalories = prompt('Editar calorías teóricas (opcional)', entry.calories === null ? '' : String(entry.calories));
+      const nextWaist = prompt('Editar medida cintura/estómago cm (opcional)', entry.waist === null ? '' : String(entry.waist));
 
       if (
         nextDate === null ||
         nextWeight === null ||
         nextBodyFat === null ||
-        nextCalories === null
+        nextCalories === null ||
+        nextWaist === null
       ) {
         return;
       }
@@ -1270,6 +1280,7 @@ function bindProgressListEvents() {
         weight: nextWeight,
         bodyFat: nextBodyFat,
         calories: nextCalories,
+        waist: nextWaist,
       });
 
       if (!updated) {
@@ -1405,39 +1416,77 @@ function handleImportFile(file) {
   reader.readAsText(file);
 }
 
-function exportProgressCsv() {
+function toMissingTextValue(value) {
+  return value === null || value === undefined || value === '' ? 'no ingresado' : value;
+}
+
+function exportProgressTxt() {
   if (!state.progressLog.length) {
     showProgressStatus('No hay registros para exportar.', 'warning');
     return;
   }
 
-  const headers = ['Fecha', 'Peso', 'Grasa corporal %', 'Calorías teóricas'];
-  const rows = sortProgressLogDesc(state.progressLog).map((entry) => [
-    entry.date,
-    entry.weight,
-    entry.bodyFat,
-    entry.calories,
-  ]);
+  const lines = sortProgressLogDesc(state.progressLog).map((entry, index) => [
+    `Registro ${index + 1}`,
+    `Fecha: ${entry.date}`,
+    `Peso: ${entry.weight} kg`,
+    `Grasa corporal: ${entry.bodyFat === null ? 'no ingresado' : `${entry.bodyFat}%`}`,
+    `Calorías teóricas: ${entry.calories === null ? 'no ingresado' : `${entry.calories} kcal`}`,
+    `Cintura/estómago: ${entry.waist === null ? 'no ingresado' : `${entry.waist} cm`}`,
+    'Imagen de sueño: no adjuntado',
+    'Imagen de movimiento: no adjuntado',
+    'OCR: no ingresado',
+  ].join('\n'));
 
-  const csv = [headers, ...rows]
-    .map((row) => row.map((cell) => `"${String(cell).replaceAll('"', '""')}"`).join(';'))
-    .join('\n');
-
-  const blob = new Blob([`\ufeff${csv}`], {
-    type: 'text/csv;charset=utf-8;',
+  const blob = new Blob([`\ufeff${lines.join('\n\n')}`], {
+    type: 'text/plain;charset=utf-8;',
   });
 
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
 
   link.href = url;
-  link.download = 'registro-diario.csv';
+  link.download = 'registro-diario.txt';
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
 
-  showProgressStatus(`Se exportaron ${rows.length} registros en CSV.`, 'success');
+  showProgressStatus(`Se exportaron ${lines.length} registros en TXT.`, 'success');
+}
+
+function exportProgressJson() {
+  if (!state.progressLog.length) {
+    showProgressStatus('No hay registros para exportar.', 'warning');
+    return;
+  }
+
+  const payload = {
+    version: 2,
+    exportedAt: new Date().toISOString(),
+    progressLog: sortProgressLogDesc(state.progressLog).map((entry) => ({
+      id: entry.id,
+      date: entry.date,
+      weight: entry.weight,
+      bodyFat: entry.bodyFat,
+      calories: entry.calories,
+      waist: entry.waist ?? null,
+      sleepImage: null,
+      movementImage: null,
+      ocrData: null,
+    })),
+  };
+
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'registro-diario.json';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+  showProgressStatus(`Se exportaron ${payload.progressLog.length} registros en JSON.`, 'success');
 }
 
 function normalizeCsvHeader(value) {
@@ -1498,7 +1547,7 @@ function importProgressRecords(file) {
     const headers = parseCsvLine(lines[0], separator).map(normalizeCsvHeader);
 
     const expectedHeaders = ['fecha', 'peso', 'grasa corporal %', 'calorias teoricas'];
-    const hasExpectedHeaders = expectedHeaders.every((header, index) => headers[index] === header);
+    const hasExpectedHeaders = expectedHeaders.every((header, index) => headers[index] === header) || headers[0] === 'fecha';
 
     if (!hasExpectedHeaders) {
       showProgressStatus(
@@ -1512,7 +1561,7 @@ function importProgressRecords(file) {
 
     for (let index = 1; index < lines.length; index += 1) {
       const cells = parseCsvLine(lines[index], separator);
-      if (cells.length < 4) continue;
+      if (cells.length < 2) continue;
 
       const entry = normalizeProgressLogEntry({
         id: createLogId(),
@@ -1520,11 +1569,12 @@ function importProgressRecords(file) {
         weight: cells[1],
         bodyFat: cells[2],
         calories: cells[3],
+        waist: cells[4],
       });
 
       if (!entry) {
         showProgressStatus(
-          `Fila ${index + 1} inválida. Revisa fecha, peso, grasa y calorías.`,
+          `Fila ${index + 1} inválida. Revisa fecha y peso (los demás campos son opcionales).`,
           'error'
         );
         return;
@@ -1674,9 +1724,10 @@ function bindProgressEvents() {
     const entry = normalizeProgressLogEntry({
       id: createLogId(),
       date: progressFields.date.value,
-      weight: progressFields.weight.value,
-      bodyFat: progressFields.bodyFat.value,
-      calories: progressFields.calories.value,
+        weight: progressFields.weight.value,
+        bodyFat: progressFields.bodyFat.value,
+        calories: progressFields.calories.value,
+        waist: progressFields.waist.value,
     });
 
     if (!progressFields.date.value) {
@@ -1685,8 +1736,7 @@ function bindProgressEvents() {
     }
 
     if (!entry) {
-      progressFields.error.textContent =
-        'Completa correctamente fecha, peso, grasa corporal y calorías teóricas.';
+      progressFields.error.textContent = 'Completa correctamente fecha y peso. Los demás campos son opcionales.';
       return;
     }
 
@@ -1699,8 +1749,12 @@ function bindProgressEvents() {
     showProgressStatus('Registro guardado correctamente.', 'success');
   });
 
-  if (progressFields.exportCsv) {
-    progressFields.exportCsv.addEventListener('click', exportProgressCsv);
+  if (progressFields.exportTxt) {
+    progressFields.exportTxt.addEventListener('click', exportProgressTxt);
+  }
+
+  if (progressFields.exportJson) {
+    progressFields.exportJson.addEventListener('click', exportProgressJson);
   }
 
   if (progressFields.importButton && progressFields.importInput) {
