@@ -982,60 +982,69 @@ function downloadDailyMenuPdf() {
   const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const pageWidth = pdf.internal.pageSize.getWidth();
   const pageHeight = pdf.internal.pageSize.getHeight();
-  const margin = 10;
-  const contentWidth = pageWidth - margin * 2;
-  const foodX = 18;
-  const foodMaxX = 95;
-  const gramsX = 125;
-  const foodColumnWidth = foodMaxX - foodX;
-  const sectionSpacing = 2;
-  const rowLineHeight = 3.6;
+  const marginX = 10;
+  const marginTop = 10;
+  const marginBottom = 10;
+  const contentWidth = pageWidth - marginX * 2;
+  const columnGap = 6;
+  const columnWidth = (pageWidth - marginX * 2 - columnGap) / 2;
+  const leftX = marginX;
+  const rightX = marginX + columnWidth + columnGap;
+  const blockInnerPaddingX = 2;
+  const mealTitleSize = 9.5;
+  const tableTextSize = 7.8;
+  const rowLineHeight = 3.2;
+  const rowSpacing = 1.6;
+  const afterRowsSpacing = 2.6;
+  const blockBottomPadding = 1.4;
+  const mealRowSpacing = 3.2;
 
   const ensureSpace = (requiredHeight) => {
-    if (cursorY + requiredHeight <= pageHeight - margin) return;
+    if (cursorY + requiredHeight <= pageHeight - marginBottom) return;
     pdf.addPage();
-    cursorY = margin;
+    cursorY = marginTop;
   };
 
   const addHeader = () => {
     pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(13);
-    pdf.text('Menú diario de comidas', margin, cursorY);
+    pdf.text('Menú diario de comidas', marginX, cursorY);
     cursorY += 4.8;
     pdf.setFont('helvetica', 'normal');
-    pdf.setFontSize(8);
-    pdf.text(`Fecha: ${getPrintableDate()}`, margin, cursorY);
+    pdf.setFontSize(8.5);
+    pdf.text(`Fecha: ${getPrintableDate()}`, marginX, cursorY);
     cursorY += 4.2;
   };
 
-  const getMealBlockHeight = (meal) => {
-    const titleHeight = 4;
-    const tableHeaderHeight = 3.8;
+  const getFoodColumnWidth = (blockWidth) => blockWidth - blockInnerPaddingX * 2 - 16;
+  const getFoodX = (x) => x + blockInnerPaddingX;
+  const getGramsX = (x, blockWidth) => x + blockWidth - blockInnerPaddingX;
+
+  const estimateMealBlockHeight = (meal, blockWidth) => {
+    const titleHeight = 3.8;
+    const tableHeaderHeight = 3.4;
+    const foodColumnWidth = getFoodColumnWidth(blockWidth);
     const foodRowsHeight = meal.foods.reduce((height, food) => {
       const wrappedLines = pdf.splitTextToSize(food.name, foodColumnWidth);
       return height + Math.max(1, wrappedLines.length) * rowLineHeight;
     }, 0);
-    const subtotalHeight = 4.2;
-    const blockBottomPadding = 1.8;
-    return titleHeight + tableHeaderHeight + foodRowsHeight + subtotalHeight + blockBottomPadding;
+    const subtotalHeight = 3.2;
+    return titleHeight + tableHeaderHeight + rowSpacing + foodRowsHeight + afterRowsSpacing + subtotalHeight + blockBottomPadding;
   };
 
-  let cursorY = margin;
-  addHeader();
+  const drawMealBlock = (meal, totals, x, y, blockWidth) => {
+    const foodX = getFoodX(x);
+    const gramsX = getGramsX(x, blockWidth);
+    const foodColumnWidth = getFoodColumnWidth(blockWidth);
+    let lineY = y;
 
-  mealsWithFoods.forEach((meal) => {
-    const mealTotals = getMealTotals(meal);
-    const blockHeight = getMealBlockHeight(meal);
-    ensureSpace(blockHeight + sectionSpacing);
-
-    let lineY = cursorY;
     pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(10);
-    pdf.text(meal.name, margin, lineY);
+    pdf.setFontSize(mealTitleSize);
+    pdf.text(meal.name, x, lineY);
 
-    lineY += 3.8;
+    lineY += 3.6;
     pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(8);
+    pdf.setFontSize(tableTextSize);
     pdf.text('Alimento', foodX, lineY);
     pdf.text('Gramos', gramsX, lineY, { align: 'right' });
 
@@ -1043,9 +1052,9 @@ function downloadDailyMenuPdf() {
     pdf.setDrawColor(215, 215, 215);
     pdf.line(foodX, lineY, gramsX, lineY);
 
-    lineY += 2.8;
+    lineY += rowSpacing;
     pdf.setFont('helvetica', 'normal');
-    pdf.setFontSize(8);
+    pdf.setFontSize(tableTextSize);
 
     meal.foods.forEach((food) => {
       const wrappedName = pdf.splitTextToSize(food.name, foodColumnWidth);
@@ -1061,32 +1070,51 @@ function downloadDailyMenuPdf() {
       lineY += rowHeight;
     });
 
+    lineY += 1.1;
     pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(8);
+    pdf.setFontSize(tableTextSize);
     pdf.text(
-      `Subtotal: P ${mealTotals.protein.toFixed(1)} g · C ${mealTotals.carbs.toFixed(1)} g · G ${mealTotals.fat.toFixed(1)} g · ${Math.round(mealTotals.calories)} kcal`,
+      `Subtotal: P ${totals.protein.toFixed(1)} g · C ${totals.carbs.toFixed(1)} g · G ${totals.fat.toFixed(1)} g · ${Math.round(totals.calories)} kcal`,
       foodX,
-      lineY + 1.2
+      lineY
     );
 
-    lineY += 2.2;
+    lineY += 1;
     pdf.setDrawColor(225, 225, 225);
     pdf.line(foodX, lineY, gramsX, lineY);
+  };
 
-    cursorY += blockHeight + sectionSpacing;
-  });
+  let cursorY = marginTop;
+  addHeader();
+
+  for (let i = 0; i < mealsWithFoods.length; i += 2) {
+    const leftMeal = mealsWithFoods[i];
+    const rightMeal = mealsWithFoods[i + 1] || null;
+    const leftTotals = getMealTotals(leftMeal);
+    const rightTotals = rightMeal ? getMealTotals(rightMeal) : null;
+    const leftHeight = estimateMealBlockHeight(leftMeal, columnWidth);
+    const rightHeight = rightMeal ? estimateMealBlockHeight(rightMeal, columnWidth) : 0;
+    const rowHeight = Math.max(leftHeight, rightHeight);
+
+    ensureSpace(rowHeight + mealRowSpacing);
+    drawMealBlock(leftMeal, leftTotals, leftX, cursorY, columnWidth);
+    if (rightMeal && rightTotals) {
+      drawMealBlock(rightMeal, rightTotals, rightX, cursorY, columnWidth);
+    }
+    cursorY += rowHeight + mealRowSpacing;
+  }
 
   const dayTotals = getDayTotals();
   ensureSpace(10);
   pdf.setFont('helvetica', 'bold');
   pdf.setFontSize(9);
-  pdf.text('Resumen diario final', margin, cursorY);
+  pdf.text('Resumen diario final', marginX, cursorY);
   cursorY += 4;
   pdf.setFont('helvetica', 'normal');
   pdf.setFontSize(8);
   pdf.text(
     `Proteínas: ${dayTotals.protein.toFixed(1)} g · Carbohidratos: ${dayTotals.carbs.toFixed(1)} g · Grasas: ${dayTotals.fat.toFixed(1)} g · Calorías: ${Math.round(dayTotals.calories)} kcal`,
-    margin,
+    marginX,
     cursorY,
     { maxWidth: contentWidth }
   );
