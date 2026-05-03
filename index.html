@@ -150,7 +150,17 @@
 
             <p id="libraryStatusMessage" class="status-message" aria-live="polite"></p>
 
-            <div>
+            <button
+              type="button"
+              id="toggleSavedFoodsButton"
+              class="secondary"
+              aria-expanded="false"
+              aria-controls="savedFoodsPanel"
+            >
+              Mostrar alimentos guardados
+            </button>
+
+            <div id="savedFoodsPanel" class="hidden">
               <h3 class="subheading">Mis alimentos guardados</h3>
               <ul id="foodLibraryList" class="food-list"></ul>
             </div>
