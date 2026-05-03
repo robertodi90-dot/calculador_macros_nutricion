@@ -589,7 +589,7 @@ body.printing-menu #printMenuSection {
   align-items: center;
   justify-content: center;
   padding: 16px;
-  z-index: 60;
+  z-index: 20000;
 }
 
 .waist-guide-modal.visible {
@@ -605,6 +605,7 @@ body.printing-menu #printMenuSection {
   border-radius: 12px;
   padding: 20px 16px 16px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  z-index: 20001;
 }
 
 .waist-guide-close {
@@ -637,8 +638,4 @@ body.printing-menu #printMenuSection {
   .waist-guide-content {
     padding: 18px 12px 12px;
   }
-}
-
-#waistGuideModal {
-  z-index: 20000;
 }
