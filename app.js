@@ -73,6 +73,7 @@ const progressFields = {
   status: document.getElementById('progressStatusMessage'),
   list: document.getElementById('progressLogList'),
   exportTxt: document.getElementById('exportProgressTxtButton'),
+  exportTxtDate: document.getElementById('exportProgressTxtDate'),
   exportJson: document.getElementById('exportProgressJsonButton'),
   importButton: document.getElementById('importProgressButton'),
   importInput: document.getElementById('progressImportInput'),
@@ -1633,13 +1634,8 @@ function toMissingTextValue(value) {
   return value === null || value === undefined || value === '' ? 'no ingresado' : value;
 }
 
-function exportProgressTxt() {
-  if (!state.progressLog.length) {
-    showProgressStatus('No hay registros para exportar.', 'warning');
-    return;
-  }
-
-  const lines = sortProgressLogDesc(state.progressLog).map((entry, index) => [
+function buildProgressTxtLines(entries) {
+  return sortProgressLogDesc(entries).map((entry, index) => [
     '=== REGISTRO DIARIO ===',
     `Registro: ${index + 1}`,
     `Fecha: ${entry.date}`,
@@ -1664,6 +1660,24 @@ function exportProgressTxt() {
     '--- NOTA PARA CHATGPT ---',
     'Este bloque contiene datos diarios de nutrición, movimiento y sueño para análisis de recuperación, gasto energético, descanso y evolución corporal.',
   ].join('\n'));
+}
+
+function exportProgressTxt() {
+  const selectedDate = String(progressFields.exportTxtDate?.value || '').trim();
+
+  if (!selectedDate) {
+    showProgressStatus('Selecciona una fecha para exportar el TXT.', 'warning');
+    return;
+  }
+
+  const selectedEntries = state.progressLog.filter((entry) => entry.date === selectedDate);
+
+  if (!selectedEntries.length) {
+    showProgressStatus('No hay registros para la fecha seleccionada.', 'warning');
+    return;
+  }
+
+  const lines = buildProgressTxtLines(selectedEntries);
 
   const blob = new Blob([`\ufeff${lines.join('\n\n')}`], {
     type: 'text/plain;charset=utf-8;',
@@ -1673,13 +1687,13 @@ function exportProgressTxt() {
   const link = document.createElement('a');
 
   link.href = url;
-  link.download = 'registro-diario.txt';
+  link.download = `registro-diario-${selectedDate}.txt`;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
 
-  showProgressStatus(`Se exportaron ${lines.length} registros en TXT.`, 'success');
+  showProgressStatus(`Se exportó ${lines.length} registro en TXT para ${selectedDate}.`, 'success');
 }
 
 function exportProgressJson() {
