@@ -379,6 +379,37 @@
         </div>
       </div>
 
+      <div id="replacementModal" class="modal hidden" aria-hidden="true">
+        <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="replacement-title">
+          <header class="modal-header">
+            <h2 id="replacement-title">Reemplazar ingrediente</h2>
+            <button id="replacementModalClose" type="button" class="secondary modal-close" data-modal-close="replacement">Cerrar</button>
+          </header>
+          <div class="modal-body" aria-labelledby="replacement-title">
+            <form id="replacementForm" class="stack" novalidate>
+              <label>Alimento reemplazo
+                <select id="replacementFoodSelect" required></select>
+              </label>
+              <label>Prioridad
+                <select id="replacementPrioritySelect" required>
+                  <option value="protein">Proteínas</option>
+                  <option value="carbs">Carbohidratos</option>
+                  <option value="fat">Grasas</option>
+                  <option value="calories">Calorías</option>
+                </select>
+              </label>
+              <p id="replacementFormError" class="form-error" aria-live="polite"></p>
+              <div id="replacementResults" class="food-meta"></div>
+              <div>
+                <p><strong>Comentario del reemplazo:</strong></p>
+                <p id="replacementComment" class="food-meta"></p>
+              </div>
+              <button type="submit" class="primary">Aplicar reemplazo</button>
+            </form>
+          </div>
+        </div>
+      </div>
+
       <section class="card" aria-labelledby="daily-summary-title">
         <div class="section-header">
           <h2 id="daily-summary-title">Resumen diario</h2>
