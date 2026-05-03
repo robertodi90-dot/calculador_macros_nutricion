@@ -297,28 +297,54 @@ function extractMovementDataFromText(text) {
   const normalized = String(text || '').replace(/\s+/g, ' ');
   const movement = {};
   const kcalPair = normalized.match(/(\d{2,4})\s*\/\s*(\d{2,4})\s*kcal/i);
-  if (kcalPair) {
-    movement.caloriesBurned = Number(kcalPair[1]);
-    movement.goalCalories = Number(kcalPair[2]);
-  }
+  if (kcalPair) movement.caloriesBurned = Number(kcalPair[1]);
   if (movement.caloriesBurned === undefined) {
     const kcalBurned = normalized.match(/(?:movimiento|gastad[ao]s?)?\s*(\d{2,4})\s*kcal/i);
     if (kcalBurned) movement.caloriesBurned = Number(kcalBurned[1]);
   }
-  ['correr', 'caminar', 'bicicleta', 'subir', 'otras'].forEach((label) => {
-    const match = normalized.match(new RegExp(`${label}\\s*[:\\-]?\\s*(\\d{1,3})\\s*%`, 'i'));
-    if (!match) return;
-    const keyMap = { correr: 'runPercent', caminar: 'walkPercent', bicicleta: 'bikePercent', subir: 'climbPercent', otras: 'otherPercent' };
-    movement[keyMap[label]] = Number(match[1]);
-  });
   return movement;
 }
 
+function normalizeDurationText(value) {
+  const raw = String(value || '').replace(/\s+/g, ' ').trim();
+  if (!raw) return '';
+  const durationMatch = raw.match(/(\d{1,2})\s*h(?:oras?)?\s*(?:(\d{1,2})\s*min(?:utos?)?)?/i);
+  if (durationMatch) return `${Number(durationMatch[1])} h ${Number(durationMatch[2] || 0)} min`;
+  const minsMatch = raw.match(/(\d{1,3})\s*min(?:utos?)?/i);
+  if (minsMatch) return `0 h ${Number(minsMatch[1])} min`;
+  return '';
+}
+
+function durationToMinutes(value) {
+  const normalized = normalizeDurationText(value);
+  if (!normalized) return null;
+  const match = normalized.match(/(\d{1,2})\s*h\s*(\d{1,2})\s*min/i);
+  if (!match) return null;
+  return Number(match[1]) * 60 + Number(match[2]);
+}
+
+function minutesToDuration(minutes) {
+  const totalMinutes = Number(minutes);
+  if (!Number.isFinite(totalMinutes) || totalMinutes < 0) return '';
+  const rounded = Math.round(totalMinutes);
+  const hours = Math.floor(rounded / 60);
+  const remaining = rounded % 60;
+  return `${hours} h ${remaining} min`;
+}
+
+function calculateSleepStageDuration(totalSleep, percentage) {
+  const totalMinutes = durationToMinutes(totalSleep);
+  const stagePercent = toNumber(percentage);
+  if (totalMinutes === null || stagePercent === null) return '';
+  return minutesToDuration((totalMinutes * stagePercent) / 100);
+}
+
 function extractSleepDataFromText(text) {
-  const normalized = String(text || '').replace(/\s+/g, ' ');
+  const rawText = String(text || '');
+  const normalized = rawText.replace(/\s+/g, ' ');
   const sleep = {};
   const durationPattern = /(\d{1,2})\s*h(?:oras?)?\s*(\d{1,2})?\s*min?/i;
-  const toDuration = (match) => (match ? `${match[1]} h ${match[2] || '0'} min` : null);
+  const toDuration = (match) => (match ? normalizeDurationText(`${match[1]} h ${match[2] || 0} min`) : null);
 
   const score = normalized.match(/(?:puntaje|puntuaci[oó]n)\s*(?:de)?\s*sue[nñ]o\s*[:\-]?\s*(\d{1,3})/i) || normalized.match(/\b(\d{1,3})\s*puntos\b/i);
   if (score) sleep.score = Number(score[1]);
@@ -326,15 +352,15 @@ function extractSleepDataFromText(text) {
   if (total) sleep.total = toDuration(total);
   const deepPct = normalized.match(/sue[nñ]o\s*profundo\s*[:\-]?\s*(\d{1,3})\s*%/i);
   if (deepPct) sleep.deepPercent = Number(deepPct[1]);
-  const deepTime = normalized.match(/sue[nñ]o\s*profundo[^\d]*(\d{1,2}\s*h(?:oras?)?\s*\d{1,2}\s*min?)/i);
+  const deepTime = rawText.match(/sue[nñ]o\s*profundo[\s\S]{0,30}?(\d{1,2}\s*h(?:oras?)?\s*\d{1,2}\s*min?)/i);
   if (deepTime) sleep.deep = toDuration(deepTime);
   const lightPct = normalized.match(/sue[nñ]o\s*liviano\s*[:\-]?\s*(\d{1,3})\s*%/i);
   if (lightPct) sleep.lightPercent = Number(lightPct[1]);
-  const lightTime = normalized.match(/sue[nñ]o\s*liviano[^\d]*(\d{1,2}\s*h(?:oras?)?\s*\d{1,2}\s*min?)/i);
+  const lightTime = rawText.match(/sue[nñ]o\s*liviano[\s\S]{0,30}?(\d{1,2}\s*h(?:oras?)?\s*\d{1,2}\s*min?)/i);
   if (lightTime) sleep.light = toDuration(lightTime);
   const remPct = normalized.match(/sue[nñ]o\s*rem\s*[:\-]?\s*(\d{1,3})\s*%/i);
   if (remPct) sleep.remPercent = Number(remPct[1]);
-  const remTime = normalized.match(/sue[nñ]o\s*rem[^\d]*(\d{1,2}\s*h(?:oras?)?\s*\d{1,2}\s*min?)/i);
+  const remTime = rawText.match(/sue[nñ]o\s*rem[\s\S]{0,30}?(\d{1,2}\s*h(?:oras?)?\s*\d{1,2}\s*min?)/i);
   if (remTime) sleep.rem = toDuration(remTime);
   const awakenings = normalized.match(/despertaste\s*[:\-]?\s*(\d{1,2})\s*veces/i);
   if (awakenings) sleep.awakenings = Number(awakenings[1]);
@@ -342,6 +368,10 @@ function extractSleepDataFromText(text) {
   if (deepContinuity) sleep.deepContinuity = Number(deepContinuity[1]);
   const breathingQuality = normalized.match(/calidad\s*de\s*(?:la\s*)?respiraci[oó]n\s*[:\-]?\s*(\d{1,3})/i);
   if (breathingQuality) sleep.breathingQuality = Number(breathingQuality[1]);
+
+  if (!sleep.deep) sleep.deep = calculateSleepStageDuration(sleep.total, sleep.deepPercent);
+  if (!sleep.light) sleep.light = calculateSleepStageDuration(sleep.total, sleep.lightPercent);
+  if (!sleep.rem) sleep.rem = calculateSleepStageDuration(sleep.total, sleep.remPercent);
   return sleep;
 }
 
