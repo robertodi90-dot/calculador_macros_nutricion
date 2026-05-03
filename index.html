@@ -216,7 +216,16 @@
                 />
               </label>
 
-              <fieldset class="capture-section">
+              <button
+                id="toggleMovementCaptureButton"
+                type="button"
+                class="secondary collapsible-toggle"
+                aria-controls="movementCapturePanel"
+                aria-expanded="false"
+              >
+                Mostrar captura de movimiento
+              </button>
+              <fieldset id="movementCapturePanel" class="capture-section hidden">
                 <legend>Captura de movimiento</legend>
                 <label for="progressMovementImage">
                   Imagen de movimiento <span class="optional-mark">(opcional)</span>
@@ -237,7 +246,16 @@
                 </div>
               </fieldset>
 
-              <fieldset class="capture-section">
+              <button
+                id="toggleSleepCaptureButton"
+                type="button"
+                class="secondary collapsible-toggle"
+                aria-controls="sleepCapturePanel"
+                aria-expanded="false"
+              >
+                Mostrar captura de sueño
+              </button>
+              <fieldset id="sleepCapturePanel" class="capture-section hidden">
                 <legend>Captura de sueño</legend>
                 <label for="progressSleepImage">
                   Imagen de sueño <span class="optional-mark">(opcional)</span>
@@ -303,7 +321,16 @@
               <ul id="progressLogList" class="food-list"></ul>
             </div>
 
-            <div class="charts-grid">
+            <button
+              id="toggleChartsButton"
+              type="button"
+              class="secondary collapsible-toggle"
+              aria-controls="chartsPanel"
+              aria-expanded="false"
+            >
+              Mostrar gráficos
+            </button>
+            <div id="chartsPanel" class="charts-grid hidden">
               <article class="chart-card">
                 <h3>Peso por fecha</h3>
                 <canvas id="weightChart" width="700" height="220"></canvas>

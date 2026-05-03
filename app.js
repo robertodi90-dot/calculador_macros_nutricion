@@ -2144,6 +2144,25 @@ function bindProgressEvents() {
   }
 }
 
+function initCollapsibleSection(buttonId, panelId, showText, hideText) {
+  const button = document.getElementById(buttonId);
+  const panel = document.getElementById(panelId);
+  if (!button || !panel) return;
+
+  const syncView = (isOpen) => {
+    panel.classList.toggle('hidden', !isOpen);
+    button.setAttribute('aria-expanded', String(isOpen));
+    button.textContent = isOpen ? hideText : showText;
+  };
+
+  syncView(false);
+
+  button.addEventListener('click', () => {
+    const isOpen = button.getAttribute('aria-expanded') === 'true';
+    syncView(!isOpen);
+  });
+}
+
 const MODAL_KEYS = ['library', 'progress'];
 
 function isSupportedModal(modalName) {
@@ -2363,5 +2382,23 @@ bindInstallPrompt();
 registerServiceWorker();
 bindLibraryEvents();
 bindProgressEvents();
+initCollapsibleSection(
+  'toggleChartsButton',
+  'chartsPanel',
+  'Mostrar gráficos',
+  'Ocultar gráficos'
+);
+initCollapsibleSection(
+  'toggleMovementCaptureButton',
+  'movementCapturePanel',
+  'Mostrar captura de movimiento',
+  'Ocultar captura de movimiento'
+);
+initCollapsibleSection(
+  'toggleSleepCaptureButton',
+  'sleepCapturePanel',
+  'Mostrar captura de sueño',
+  'Ocultar captura de sueño'
+);
 updateLibraryCaloriesPreview();
 render();

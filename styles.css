@@ -352,6 +352,10 @@ select:focus {
   min-height: 1rem;
 }
 
+.collapsible-toggle {
+  justify-self: start;
+}
+
 .hidden {
   display: none !important;
 }
