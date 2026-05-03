@@ -214,7 +214,10 @@
               </label>
 
               <label for="progressWaist">
-                Medida cintura/estómago (cm) <span class="optional-mark">(opcional)</span>
+                <span class="waist-label-row">
+                  <span>Medida cintura/estómago (cm) <span class="optional-mark">(opcional)</span></span>
+                  <button id="waistGuideTrigger" type="button" class="waist-guide-trigger">¿Cómo medir?</button>
+                </span>
                 <input
                   id="progressWaist"
                   name="waist"
@@ -346,6 +349,15 @@
     </main>
 
     <section id="printMenuSection" class="hidden" aria-hidden="true"></section>
+
+
+    <div id="waistGuideModal" class="waist-guide-modal hidden" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="waistGuideTitle">
+      <div class="waist-guide-content">
+        <button id="waistGuideClose" type="button" class="waist-guide-close" aria-label="Cerrar guía">×</button>
+        <h3 id="waistGuideTitle">Guía de medición de cintura</h3>
+        <img src="assets/images/guia_cintura.png" alt="Guía visual para medir la cintura o estómago correctamente" class="waist-guide-image" />
+      </div>
+    </div>
 
     <script type="module" src="/app.js"></script>
   </body>
