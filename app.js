@@ -2374,7 +2374,7 @@ function bindProgressEvents() {
   }
 }
 
-function initCollapsibleSection(buttonId, panelId, showText, hideText) {
+function initCollapsibleSection(buttonId, panelId, showText, hideText, onToggle) {
   const button = document.getElementById(buttonId);
   const panel = document.getElementById(panelId);
   if (!button || !panel) return;
@@ -2383,6 +2383,7 @@ function initCollapsibleSection(buttonId, panelId, showText, hideText) {
     panel.classList.toggle('hidden', !isOpen);
     button.setAttribute('aria-expanded', String(isOpen));
     button.textContent = isOpen ? hideText : showText;
+    onToggle?.(isOpen);
   };
 
   syncView(false);
@@ -2649,7 +2650,12 @@ initCollapsibleSection(
   'toggleDailySummaryButton',
   'dailySummaryPanel',
   'Mostrar resumen diario',
-  'Ocultar resumen diario'
+  'Ocultar resumen diario',
+  (isOpen) => {
+    const dailyMenuActions = document.getElementById('dailyMenuActions');
+    if (!dailyMenuActions) return;
+    dailyMenuActions.classList.toggle('hidden', !isOpen);
+  }
 );
 updateLibraryCaloriesPreview();
 render();
