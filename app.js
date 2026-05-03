@@ -309,15 +309,30 @@ function normalizeDurationText(value) {
   return '';
 }
 
-function durationToMinutes(value) {
-  const normalized = normalizeDurationText(value);
-  if (!normalized) return null;
-  const match = normalized.match(/(\d{1,2})\s*h\s*(\d{1,2})\s*min/i);
-  if (!match) return null;
-  return Number(match[1]) * 60 + Number(match[2]);
+function parseSleepDurationToMinutes(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return null;
+
+  const normalized = normalizeDurationText(raw);
+  if (normalized) {
+    const match = normalized.match(/(\d{1,2})\s*h\s*(\d{1,2})\s*min/i);
+    if (match) return Number(match[1]) * 60 + Number(match[2]);
+  }
+
+  const compact = raw.replace(/\s+/g, '').toLowerCase();
+  const hoursAndMinutes = compact.match(/^(\d{1,2})h(\d{1,2})$/);
+  if (hoursAndMinutes) return Number(hoursAndMinutes[1]) * 60 + Number(hoursAndMinutes[2]);
+
+  const colonOrDot = compact.match(/^(\d{1,2})[:\.](\d{1,2})$/);
+  if (colonOrDot) return Number(colonOrDot[1]) * 60 + Number(colonOrDot[2]);
+
+  const onlyHours = compact.match(/^(\d{1,2})$/);
+  if (onlyHours) return Number(onlyHours[1]) * 60;
+
+  return null;
 }
 
-function minutesToDuration(minutes) {
+function minutesToSleepDuration(minutes) {
   const totalMinutes = Number(minutes);
   if (!Number.isFinite(totalMinutes) || totalMinutes < 0) return '';
   const rounded = Math.round(totalMinutes);
@@ -326,11 +341,24 @@ function minutesToDuration(minutes) {
   return `${hours} h ${remaining} min`;
 }
 
-function calculateSleepStageDuration(totalSleep, percentage) {
-  const totalMinutes = durationToMinutes(totalSleep);
-  const stagePercent = toNumber(percentage);
+function calculateSleepStageDuration(totalSleepValue, percentageValue) {
+  const totalMinutes = parseSleepDurationToMinutes(totalSleepValue);
+  const stagePercent = toNumber(percentageValue);
   if (totalMinutes === null || stagePercent === null) return '';
-  return minutesToDuration((totalMinutes * stagePercent) / 100);
+  return minutesToSleepDuration((totalMinutes * stagePercent) / 100);
+}
+
+function recalculateSleepStageDurations() {
+  const totalSleepValue = progressFields.sleepTotal?.value;
+  if (!totalSleepValue) return;
+
+  const deepDuration = calculateSleepStageDuration(totalSleepValue, progressFields.sleepDeepPercent?.value);
+  const lightDuration = calculateSleepStageDuration(totalSleepValue, progressFields.sleepLightPercent?.value);
+  const remDuration = calculateSleepStageDuration(totalSleepValue, progressFields.sleepRemPercent?.value);
+
+  if (deepDuration) progressFields.sleepDeep.value = deepDuration;
+  if (lightDuration) progressFields.sleepLight.value = lightDuration;
+  if (remDuration) progressFields.sleepRem.value = remDuration;
 }
 
 function extractSleepDataFromText(text) {
@@ -385,6 +413,7 @@ function fillSleepFields(data) {
   if (data.awakenings !== undefined) progressFields.sleepAwakenings.value = data.awakenings;
   if (data.deepContinuity !== undefined) progressFields.sleepDeepContinuity.value = data.deepContinuity;
   if (data.breathingQuality !== undefined) progressFields.sleepBreathingQuality.value = data.breathingQuality;
+  recalculateSleepStageDurations();
 }
 
 function sortProgressLogDesc(entries) {
@@ -2030,6 +2059,19 @@ function bindProgressEvents() {
     } finally {
       progressFields.extractSleepButton.disabled = false;
     }
+  });
+
+  const sleepAutoCalculationInputs = [
+    progressFields.sleepTotal,
+    progressFields.sleepDeepPercent,
+    progressFields.sleepLightPercent,
+    progressFields.sleepRemPercent,
+  ];
+
+  ['input', 'change'].forEach((eventName) => {
+    sleepAutoCalculationInputs.forEach((field) => {
+      field?.addEventListener(eventName, recalculateSleepStageDurations);
+    });
   });
 
   if (progressFields.exportTxt) {
