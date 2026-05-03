@@ -19,6 +19,8 @@ const uiFields = {
   progressToggle: document.getElementById('progressToggle'),
   progressModal: document.getElementById('progressModal'),
   progressModalClose: document.getElementById('progressModalClose'),
+  replacementModal: document.getElementById('replacementModal'),
+  replacementModalClose: document.getElementById('replacementModalClose'),
   printMenuButton: document.getElementById('printMenuButton'),
   exportDailyMenuButton: document.getElementById('exportDailyMenuButton'),
   importDailyMenuButton: document.getElementById('importDailyMenuButton'),
@@ -104,6 +106,15 @@ const summary = {
 
 const mealsContainer = document.getElementById('mealsContainer');
 const printMenuSection = document.getElementById('printMenuSection');
+const replacementFields = {
+  form: document.getElementById('replacementForm'),
+  foodSelect: document.getElementById('replacementFoodSelect'),
+  prioritySelect: document.getElementById('replacementPrioritySelect'),
+  error: document.getElementById('replacementFormError'),
+  results: document.getElementById('replacementResults'),
+  comment: document.getElementById('replacementComment'),
+};
+let replacementContext = null;
 
 function safeParseJson(raw) {
   try {
@@ -147,6 +158,7 @@ function createDefaultDayState() {
     ui: {
       libraryOpen: false,
       progressOpen: false,
+      replacementOpen: false,
       theme: 'light',
       collapsedMeals: {},
     },
@@ -619,11 +631,14 @@ function applyTheme() {
 function updateModalVisibility() {
   const isLibraryOpen = Boolean(state.ui.libraryOpen);
   const isProgressOpen = Boolean(state.ui.progressOpen);
+  const isReplacementOpen = Boolean(state.ui.replacementOpen);
 
   uiFields.libraryModal?.classList.toggle('hidden', !isLibraryOpen);
   uiFields.libraryModal?.setAttribute('aria-hidden', String(!isLibraryOpen));
   uiFields.progressModal?.classList.toggle('hidden', !isProgressOpen);
   uiFields.progressModal?.setAttribute('aria-hidden', String(!isProgressOpen));
+  uiFields.replacementModal?.classList.toggle('hidden', !isReplacementOpen);
+  uiFields.replacementModal?.setAttribute('aria-hidden', String(!isReplacementOpen));
 
   if (uiFields.libraryToggle) {
     uiFields.libraryToggle.textContent = isLibraryOpen
@@ -639,7 +654,7 @@ function updateModalVisibility() {
     uiFields.progressToggle.setAttribute('aria-expanded', String(isProgressOpen));
   }
 
-  document.body.classList.toggle('modal-open', isLibraryOpen || isProgressOpen);
+  document.body.classList.toggle('modal-open', isLibraryOpen || isProgressOpen || isReplacementOpen);
 }
 
 function isElementVisible(element) {
@@ -662,6 +677,38 @@ function getFoodTotals(food) {
     fat: food.fat * factor,
     calories: food.caloriesPer100 * factor,
   };
+}
+
+function getReplacementDifferences(originalMacros, replacementMacros) {
+  return {
+    proteinDiff: replacementMacros.protein - originalMacros.protein,
+    carbsDiff: replacementMacros.carbs - originalMacros.carbs,
+    fatDiff: replacementMacros.fat - originalMacros.fat,
+    caloriesDiff: replacementMacros.calories - originalMacros.calories,
+  };
+}
+
+function buildReplacementComment(differences, priority) {
+  const thresholds = { proteinDiff: 3, carbsDiff: 5, fatDiff: 3, caloriesDiff: 40 };
+  const labels = { proteinDiff: 'proteínas', carbsDiff: 'carbohidratos', fatDiff: 'grasas', caloriesDiff: 'calorías' };
+  const priorityLabel = { protein: 'proteínas', carbs: 'carbohidratos', fat: 'grasas', calories: 'calorías' }[priority] || 'objetivo';
+  const low = [];
+  const high = [];
+  Object.entries(differences).forEach(([key, value]) => {
+    if (Math.abs(value) < thresholds[key]) return;
+    if (value < 0) low.push(labels[key]);
+    if (value > 0) high.push(labels[key]);
+  });
+  if (!low.length && !high.length) return `Prioridad cumplida: ${priorityLabel}. El reemplazo queda bastante similar al alimento original.`;
+  const pieces = [`Prioridad cumplida: ${priorityLabel}.`];
+  if (low.length) pieces.push(`El reemplazo queda más bajo en ${low.join(' y ')}.`);
+  if (high.length) pieces.push(`El reemplazo queda más alto en ${high.join(' y ')}.`);
+  if (low.includes('grasas')) pieces.push('Podrías complementar con una fuente de grasa si quieres acercarte al original.');
+  if (low.includes('carbohidratos')) pieces.push('Podrías complementar con una fuente de carbohidratos si quieres acercarte al original.');
+  if (low.includes('proteínas')) pieces.push('Podrías complementar con una fuente de proteína si quieres acercarte al original.');
+  if (low.includes('calorías')) pieces.push('El reemplazo aporta menos calorías que el original.');
+  if (high.length) pieces.push('El reemplazo supera al original en algunos valores; revisa si eso encaja con tu plan.');
+  return pieces.join(' ');
 }
 
 function getMealTotals(meal) {
@@ -1199,6 +1246,14 @@ function mealFoodItemHtml(food, mealIndex, foodIndex) {
         <p class="food-name">${food.name}</p>
         <button
           type="button"
+          class="secondary replace-ingredient-button"
+          data-meal-index="${mealIndex}"
+          data-food-index="${foodIndex}"
+        >
+          Reemplazar
+        </button>
+        <button
+          type="button"
           class="secondary delete-ingredient-button"
           data-meal-index="${mealIndex}"
           data-food-index="${foodIndex}"
@@ -1592,6 +1647,20 @@ function bindMealEvents() {
   });
 
   const deleteButtons = mealsContainer.querySelectorAll('.delete-ingredient-button');
+  const replaceButtons = mealsContainer.querySelectorAll('.replace-ingredient-button');
+
+  replaceButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      const mealIndex = Number(button.dataset.mealIndex);
+      const foodIndex = Number(button.dataset.foodIndex);
+      if (!Number.isInteger(mealIndex) || !Number.isInteger(foodIndex)) return;
+      const food = state.meals[mealIndex]?.foods?.[foodIndex];
+      if (!food) return;
+      replacementContext = { mealIndex, foodIndex };
+      renderReplacementModal();
+      openModal('replacement');
+    });
+  });
 
   deleteButtons.forEach((button) => {
     button.addEventListener('click', () => {
@@ -1631,6 +1700,42 @@ function bindMealEvents() {
       fileInput.click();
     });
   });
+}
+
+function renderReplacementModal() {
+  if (!replacementFields.foodSelect || !replacementContext) return;
+  const currentFood = state.meals[replacementContext.mealIndex]?.foods?.[replacementContext.foodIndex];
+  if (!currentFood) return;
+  const options = state.foodLibrary
+    .map((food) => `<option value="${food.id}">${food.name}</option>`)
+    .join('');
+  replacementFields.foodSelect.innerHTML = options;
+  replacementFields.error.textContent = '';
+  updateReplacementPreview();
+}
+
+function updateReplacementPreview() {
+  if (!replacementContext || !replacementFields.foodSelect || !replacementFields.prioritySelect) return;
+  const currentFood = state.meals[replacementContext.mealIndex]?.foods?.[replacementContext.foodIndex];
+  const replacementFood = state.foodLibrary.find((item) => item.id === replacementFields.foodSelect.value);
+  if (!currentFood || !replacementFood) return;
+  const priority = replacementFields.prioritySelect.value;
+  const originalTotals = getFoodTotals(currentFood);
+  const priorityMap = { protein: 'protein', carbs: 'carbs', fat: 'fat', calories: 'caloriesPer100' };
+  const per100Value = replacementFood[priorityMap[priority]];
+  if (!per100Value || per100Value <= 0) return;
+  const targetValue = originalTotals[priority === 'calories' ? 'calories' : priority];
+  const grams = (targetValue / per100Value) * 100;
+  const replacementTotals = {
+    protein: (replacementFood.protein * grams) / 100,
+    carbs: (replacementFood.carbs * grams) / 100,
+    fat: (replacementFood.fat * grams) / 100,
+    calories: (replacementFood.caloriesPer100 * grams) / 100,
+  };
+  const differences = getReplacementDifferences(originalTotals, replacementTotals);
+  replacementContext.preview = { replacementFood, grams, replacementTotals, differences, priority };
+  replacementFields.results.innerHTML = `Original: P: ${originalTotals.protein.toFixed(1)} g · C: ${originalTotals.carbs.toFixed(1)} g · G: ${originalTotals.fat.toFixed(1)} g · kcal: ${Math.round(originalTotals.calories)}<br>Reemplazo: P: ${replacementTotals.protein.toFixed(1)} g · C: ${replacementTotals.carbs.toFixed(1)} g · G: ${replacementTotals.fat.toFixed(1)} g · kcal: ${Math.round(replacementTotals.calories)}<br>Diferencia: P: ${differences.proteinDiff.toFixed(1)} g · C: ${differences.carbsDiff.toFixed(1)} g · G: ${differences.fatDiff.toFixed(1)} g · kcal: ${Math.round(differences.caloriesDiff)}`;
+  replacementFields.comment.textContent = buildReplacementComment(differences, priority);
 }
 
 function bindProgressListEvents() {
@@ -2394,7 +2499,7 @@ function initCollapsibleSection(buttonId, panelId, showText, hideText, onToggle)
   });
 }
 
-const MODAL_KEYS = ['library', 'progress'];
+const MODAL_KEYS = ['library', 'progress', 'replacement'];
 
 function isSupportedModal(modalName) {
   return MODAL_KEYS.includes(modalName);
@@ -2405,10 +2510,12 @@ function setModalState(modalName, isOpen) {
 
   state.ui.libraryOpen = false;
   state.ui.progressOpen = false;
+  state.ui.replacementOpen = false;
 
   if (isOpen) {
     if (modalName === 'library') state.ui.libraryOpen = true;
     if (modalName === 'progress') state.ui.progressOpen = true;
+    if (modalName === 'replacement') state.ui.replacementOpen = true;
   }
 
   saveDayState();
@@ -2457,6 +2564,27 @@ function bindUiEvents() {
 
   uiFields.libraryModalClose?.addEventListener('click', () => closeModal('library'));
   uiFields.progressModalClose?.addEventListener('click', () => closeModal('progress'));
+  uiFields.replacementModalClose?.addEventListener('click', () => closeModal('replacement'));
+
+  replacementFields.foodSelect?.addEventListener('change', updateReplacementPreview);
+  replacementFields.prioritySelect?.addEventListener('change', updateReplacementPreview);
+  replacementFields.form?.addEventListener('submit', (event) => {
+    event.preventDefault();
+    if (!replacementContext?.preview) return;
+    const { mealIndex, foodIndex } = replacementContext;
+    const currentFood = state.meals[mealIndex]?.foods?.[foodIndex];
+    if (!currentFood) return;
+    currentFood.sourceFoodId = replacementContext.preview.replacementFood.id;
+    currentFood.name = replacementContext.preview.replacementFood.name;
+    currentFood.protein = replacementContext.preview.replacementFood.protein;
+    currentFood.carbs = replacementContext.preview.replacementFood.carbs;
+    currentFood.fat = replacementContext.preview.replacementFood.fat;
+    currentFood.caloriesPer100 = replacementContext.preview.replacementFood.caloriesPer100;
+    currentFood.consumedGrams = Number(replacementContext.preview.grams.toFixed(1));
+    saveDayState();
+    closeModal('replacement');
+    render();
+  });
 
   uiFields.libraryModal?.addEventListener('click', (event) => {
     if (event.target !== uiFields.libraryModal) return;
