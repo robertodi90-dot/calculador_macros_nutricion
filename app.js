@@ -148,6 +148,7 @@ function createDefaultDayState() {
       libraryOpen: false,
       progressOpen: false,
       theme: 'light',
+      collapsedMeals: {},
     },
   };
 }
@@ -491,6 +492,8 @@ function extractDayStateFromParsed(parsed) {
   );
   const mealsCount = Math.min(12, Math.max(1, parsedMealsCount));
   const parsedUi = parsed.ui || {};
+  const parsedCollapsedMeals =
+    parsedUi.collapsedMeals && typeof parsedUi.collapsedMeals === 'object' ? parsedUi.collapsedMeals : {};
 
   return {
     dailyCalorieGoal: Math.max(0, toNumber(parsed.dailyCalorieGoal) || 0),
@@ -500,6 +503,10 @@ function extractDayStateFromParsed(parsed) {
       libraryOpen: false,
       progressOpen: false,
       theme: parsedUi.theme === 'dark' ? 'dark' : 'light',
+      collapsedMeals: Object.entries(parsedCollapsedMeals).reduce((acc, [key, value]) => {
+        if (value === true || value === false) acc[key] = value;
+        return acc;
+      }, {}),
     },
   };
 }
@@ -1427,11 +1434,23 @@ function renderMeals() {
         `
         : '<p class="empty">Primero guarda alimentos en la biblioteca para poder agregarlos a las comidas.</p>';
 
+      const mealPanelId = `meal-content-${mealIndex}`;
+      const isCollapsed = Boolean(state.ui.collapsedMeals?.[mealIndex]);
+
       return `
         <section class="card meal-card" data-meal-index="${mealIndex}">
           <div class="meal-header">
             <h2>${meal.name}</h2>
             <div class="meal-actions">
+              <button
+                type="button"
+                class="secondary toggle-meal-visibility-button"
+                data-meal-index="${mealIndex}"
+                aria-expanded="${String(!isCollapsed)}"
+                aria-controls="${mealPanelId}"
+              >
+                ${isCollapsed ? 'Mostrar comida' : 'Ocultar comida'}
+              </button>
               <button type="button" class="secondary export-meal-button" data-meal-index="${mealIndex}">
                 Descargar comida
               </button>
@@ -1444,12 +1463,14 @@ function renderMeals() {
             </div>
           </div>
 
-          ${ingredientFormHtml}
+          <div id="${mealPanelId}" class="meal-content${isCollapsed ? ' hidden' : ''}">
+            ${ingredientFormHtml}
 
-          ${foodsHtml}
+            ${foodsHtml}
 
-          <div class="subtotal" role="status" aria-live="polite">
-            Subtotal: P ${mealTotals.protein.toFixed(1)} g · C ${mealTotals.carbs.toFixed(1)} g · G ${mealTotals.fat.toFixed(1)} g · ${Math.round(mealTotals.calories)} kcal
+            <div class="subtotal" role="status" aria-live="polite">
+              Subtotal: P ${mealTotals.protein.toFixed(1)} g · C ${mealTotals.carbs.toFixed(1)} g · G ${mealTotals.fat.toFixed(1)} g · ${Math.round(mealTotals.calories)} kcal
+            </div>
           </div>
         </section>
       `;
@@ -1538,6 +1559,21 @@ function bindMealEvents() {
         caloriesPer100: sourceFood.caloriesPer100,
         consumedGrams,
       });
+
+      saveDayState();
+      render();
+    });
+  });
+
+  const toggleVisibilityButtons = mealsContainer.querySelectorAll('.toggle-meal-visibility-button');
+
+  toggleVisibilityButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      const mealIndex = Number(button.dataset.mealIndex);
+      if (!Number.isInteger(mealIndex) || !state.meals[mealIndex]) return;
+
+      state.ui.collapsedMeals = state.ui.collapsedMeals || {};
+      state.ui.collapsedMeals[mealIndex] = !Boolean(state.ui.collapsedMeals[mealIndex]);
 
       saveDayState();
       render();
