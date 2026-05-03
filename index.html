@@ -386,12 +386,14 @@
             <button id="printMenuButton" type="button" class="secondary">
               Descargar menú PDF
             </button>
-            <button id="exportDailyMenuButton" type="button" class="secondary">
-              Descargar menú diario
-            </button>
-            <button id="importDailyMenuButton" type="button" class="secondary">
-              Cargar menú diario
-            </button>
+            <div id="dailyMenuActions" class="inline-actions hidden">
+              <button id="exportDailyMenuButton" type="button" class="secondary">
+                Descargar menú diario
+              </button>
+              <button id="importDailyMenuButton" type="button" class="secondary">
+                Cargar menú diario
+              </button>
+            </div>
           </div>
         </div>
         <input id="importDailyMenuInput" type="file" accept="application/json,.json" class="hidden" />
