@@ -22,6 +22,9 @@ const uiFields = {
   importDailyMenuButton: document.getElementById('importDailyMenuButton'),
   importDailyMenuInput: document.getElementById('importDailyMenuInput'),
   resetDayButton: document.getElementById('resetDayButton'),
+  waistGuideTrigger: document.getElementById('waistGuideTrigger'),
+  waistGuideModal: document.getElementById('waistGuideModal'),
+  waistGuideClose: document.getElementById('waistGuideClose'),
 };
 
 const libraryFields = {
@@ -1888,6 +1891,40 @@ function bindUiEvents() {
 }
 
 
+
+function bindWaistGuideModal() {
+  const trigger = uiFields.waistGuideTrigger;
+  const modal = uiFields.waistGuideModal;
+  const closeButton = uiFields.waistGuideClose;
+
+  if (!trigger || !modal || !closeButton) return;
+
+  const openModal = () => {
+    modal.classList.remove('hidden');
+    modal.classList.add('visible');
+    modal.setAttribute('aria-hidden', 'false');
+  };
+
+  const closeModal = () => {
+    modal.classList.remove('visible');
+    modal.classList.add('hidden');
+    modal.setAttribute('aria-hidden', 'true');
+  };
+
+  trigger.addEventListener('click', openModal);
+  closeButton.addEventListener('click', closeModal);
+
+  modal.addEventListener('click', (event) => {
+    if (event.target !== modal) return;
+    closeModal();
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape' || modal.classList.contains('hidden')) return;
+    closeModal();
+  });
+}
+
 let deferredInstallPrompt = null;
 
 function registerServiceWorker() {
@@ -1950,6 +1987,7 @@ fields.mealsCount?.addEventListener('input', () => {
 });
 
 bindUiEvents();
+bindWaistGuideModal();
 bindInstallPrompt();
 registerServiceWorker();
 bindLibraryEvents();
