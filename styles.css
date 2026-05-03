@@ -270,6 +270,23 @@ select:focus {
   flex-wrap: wrap;
 }
 
+.meal-header-subtotal {
+  display: inline;
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 500;
+  margin-left: 4px;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 640px) {
+  .meal-header-subtotal {
+    display: block;
+    margin-left: 0;
+    margin-top: 2px;
+  }
+}
+
 .primary,
 .secondary,
 .tiny {

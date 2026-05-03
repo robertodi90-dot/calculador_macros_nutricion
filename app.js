@@ -1437,11 +1437,15 @@ function renderMeals() {
 
       const mealPanelId = `meal-content-${mealIndex}`;
       const isCollapsed = Boolean(state.ui.collapsedMeals?.[mealIndex]);
+      const mealHeaderSubtotal = `P ${mealTotals.protein.toFixed(1)} g · C ${mealTotals.carbs.toFixed(1)} g · G ${mealTotals.fat.toFixed(1)} g · ${Math.round(mealTotals.calories)} kcal`;
 
       return `
         <section class="card meal-card" data-meal-index="${mealIndex}">
           <div class="meal-header">
-            <h2>${meal.name}</h2>
+            <h2>
+              ${meal.name}
+              <span class="meal-header-subtotal${isCollapsed ? '' : ' hidden'}">· ${mealHeaderSubtotal}</span>
+            </h2>
             <div class="meal-actions">
               <button
                 type="button"
@@ -1470,7 +1474,7 @@ function renderMeals() {
             ${foodsHtml}
 
             <div class="subtotal" role="status" aria-live="polite">
-              Subtotal: P ${mealTotals.protein.toFixed(1)} g · C ${mealTotals.carbs.toFixed(1)} g · G ${mealTotals.fat.toFixed(1)} g · ${Math.round(mealTotals.calories)} kcal
+              Subtotal: ${mealHeaderSubtotal}
             </div>
           </div>
         </section>
