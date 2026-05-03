@@ -984,10 +984,12 @@ function downloadDailyMenuPdf() {
   const pageHeight = pdf.internal.pageSize.getHeight();
   const margin = 10;
   const contentWidth = pageWidth - margin * 2;
-  const lineHeight = 4.5;
-  const blockPadding = 3;
-  const sectionSpacing = 3;
-  const ingredientGap = 0.8;
+  const foodX = 18;
+  const foodMaxX = 95;
+  const gramsX = 125;
+  const foodColumnWidth = foodMaxX - foodX;
+  const sectionSpacing = 2;
+  const rowLineHeight = 3.6;
 
   const ensureSpace = (requiredHeight) => {
     if (cursorY + requiredHeight <= pageHeight - margin) return;
@@ -997,65 +999,91 @@ function downloadDailyMenuPdf() {
 
   const addHeader = () => {
     pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(14);
+    pdf.setFontSize(13);
     pdf.text('Menú diario de comidas', margin, cursorY);
-    cursorY += 5.5;
+    cursorY += 4.8;
     pdf.setFont('helvetica', 'normal');
-    pdf.setFontSize(9);
+    pdf.setFontSize(8);
     pdf.text(`Fecha: ${getPrintableDate()}`, margin, cursorY);
-    cursorY += 5;
+    cursorY += 4.2;
+  };
+
+  const getMealBlockHeight = (meal) => {
+    const titleHeight = 4;
+    const tableHeaderHeight = 3.8;
+    const foodRowsHeight = meal.foods.reduce((height, food) => {
+      const wrappedLines = pdf.splitTextToSize(food.name, foodColumnWidth);
+      return height + Math.max(1, wrappedLines.length) * rowLineHeight;
+    }, 0);
+    const subtotalHeight = 4.2;
+    const blockBottomPadding = 1.8;
+    return titleHeight + tableHeaderHeight + foodRowsHeight + subtotalHeight + blockBottomPadding;
   };
 
   let cursorY = margin;
   addHeader();
 
-  mealsWithFoods.forEach((meal, mealIndex) => {
+  mealsWithFoods.forEach((meal) => {
     const mealTotals = getMealTotals(meal);
-    const mealHeaderHeight = 5;
-    const ingredientsHeight = meal.foods.length * (lineHeight + ingredientGap);
-    const subtotalHeight = 5;
-    const blockHeight = blockPadding * 2 + mealHeaderHeight + ingredientsHeight + subtotalHeight;
-
+    const blockHeight = getMealBlockHeight(meal);
     ensureSpace(blockHeight + sectionSpacing);
-    pdf.setDrawColor(210, 210, 210);
-    pdf.rect(margin, cursorY, contentWidth, blockHeight);
 
-    let lineY = cursorY + blockPadding + 3.7;
+    let lineY = cursorY;
     pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(10);
-    pdf.text(meal.name, margin + blockPadding, lineY);
+    pdf.text(meal.name, margin, lineY);
 
-    lineY += 4.2;
+    lineY += 3.8;
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(8);
+    pdf.text('Alimento', foodX, lineY);
+    pdf.text('Gramos', gramsX, lineY, { align: 'right' });
+
+    lineY += 1;
+    pdf.setDrawColor(215, 215, 215);
+    pdf.line(foodX, lineY, gramsX, lineY);
+
+    lineY += 2.8;
     pdf.setFont('helvetica', 'normal');
-    pdf.setFontSize(9);
+    pdf.setFontSize(8);
+
     meal.foods.forEach((food) => {
-      lineY += lineHeight;
-      pdf.text(food.name, margin + blockPadding, lineY);
-      pdf.text(`${food.consumedGrams.toFixed(1)} g`, margin + contentWidth - blockPadding, lineY, { align: 'right' });
-      lineY += ingredientGap;
+      const wrappedName = pdf.splitTextToSize(food.name, foodColumnWidth);
+      const rowHeight = Math.max(1, wrappedName.length) * rowLineHeight;
+      const gramsText = `${food.consumedGrams.toFixed(1)} g`;
+
+      wrappedName.forEach((nameLine, lineIndex) => {
+        pdf.text(nameLine, foodX, lineY + lineIndex * rowLineHeight);
+      });
+
+      const gramsY = lineY + ((Math.max(1, wrappedName.length) - 1) * rowLineHeight) / 2;
+      pdf.text(gramsText, gramsX, gramsY, { align: 'right' });
+      lineY += rowHeight;
     });
 
-    lineY += 3.5;
     pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(9);
+    pdf.setFontSize(8);
     pdf.text(
       `Subtotal: P ${mealTotals.protein.toFixed(1)} g · C ${mealTotals.carbs.toFixed(1)} g · G ${mealTotals.fat.toFixed(1)} g · ${Math.round(mealTotals.calories)} kcal`,
-      margin + blockPadding,
-      lineY
+      foodX,
+      lineY + 1.2
     );
 
+    lineY += 2.2;
+    pdf.setDrawColor(225, 225, 225);
+    pdf.line(foodX, lineY, gramsX, lineY);
+
     cursorY += blockHeight + sectionSpacing;
-    if (mealIndex === mealsWithFoods.length - 1) cursorY += 1;
   });
 
   const dayTotals = getDayTotals();
-  ensureSpace(12);
+  ensureSpace(10);
   pdf.setFont('helvetica', 'bold');
-  pdf.setFontSize(10);
-  pdf.text('Resumen diario final', margin, cursorY);
-  cursorY += 5;
-  pdf.setFont('helvetica', 'normal');
   pdf.setFontSize(9);
+  pdf.text('Resumen diario final', margin, cursorY);
+  cursorY += 4;
+  pdf.setFont('helvetica', 'normal');
+  pdf.setFontSize(8);
   pdf.text(
     `Proteínas: ${dayTotals.protein.toFixed(1)} g · Carbohidratos: ${dayTotals.carbs.toFixed(1)} g · Grasas: ${dayTotals.fat.toFixed(1)} g · Calorías: ${Math.round(dayTotals.calories)} kcal`,
     margin,
