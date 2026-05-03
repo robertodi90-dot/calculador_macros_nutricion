@@ -70,6 +70,7 @@ const progressFields = {
   status: document.getElementById('progressStatusMessage'),
   list: document.getElementById('progressLogList'),
   exportTxt: document.getElementById('exportProgressTxtButton'),
+  exportAllTxt: document.getElementById('exportAllProgressTxtButton'),
   exportTxtDate: document.getElementById('exportProgressTxtDate'),
   exportJson: document.getElementById('exportProgressJsonButton'),
   importButton: document.getElementById('importProgressButton'),
@@ -1667,7 +1668,8 @@ function getCurrentNutritionSummarySnapshot() {
   };
 }
 
-function buildProgressTxtLines(entries) {
+function buildProgressTxtLines(entries, options = {}) {
+  const { includeChatGptNote = true } = options;
   return sortProgressLogDesc(entries).map((entry, index) => [
     '=== REGISTRO DIARIO ===',
     `Registro: ${index + 1}`,
@@ -1696,17 +1698,19 @@ function buildProgressTxtLines(entries) {
     `Despertares: ${toMissingTextValue(entry.sleep?.awakenings)}${entry.sleep?.awakenings === null ? '' : ' veces'}`,
     `Continuidad sueño profundo: ${toMissingTextValue(entry.sleep?.deepContinuity)}${entry.sleep?.deepContinuity === null ? '' : ' puntos'}`,
     `Calidad de respiración: ${toMissingTextValue(entry.sleep?.breathingQuality)}`,
-    '',
-    '--- NOTA PARA CHATGPT ---',
-    'ChatGPT debe actuar como Analista NEUROBASE de biométricos, sueño, nutrición, movimiento y recuperación.',
-    '',
-    'Su función es recibir mis registros diarios en formato estructurado, verificar los datos, calcular masa grasa y masa magra cuando entregue peso y porcentaje de grasa, cruzar alimentación, sueño, movimiento, pasos y entrenamiento, y analizar si los cambios son reales o solo variaciones por bioimpedancia, agua, glucógeno, estrés, digestión o error de medición.',
-    '',
-    'Debe hacerme preguntas puntuales cuando detecte dudas o inconsistencias, por ejemplo despertares nocturnos, respiración baja, cambios bruscos de peso o grasa, calorías fuera de patrón, pasos altos/bajos o entrenamientos que puedan alterar el sueño.',
-    '',
-    'No debe concluir aumento o pérdida real de grasa por un solo día. Debe analizar tendencias, contexto y comportamiento acumulado dentro del histórico NEUROBASE.',
-    '',
-    'También debe registrar todos los datos en memoria, exceptuando por si en alguna ocasión yo pida expresamente no hacerlo o eliminarlo.',
+    ...(includeChatGptNote ? [
+      '',
+      '--- NOTA PARA CHATGPT ---',
+      'ChatGPT debe actuar como Analista NEUROBASE de biométricos, sueño, nutrición, movimiento y recuperación.',
+      '',
+      'Su función es recibir mis registros diarios en formato estructurado, verificar los datos, calcular masa grasa y masa magra cuando entregue peso y porcentaje de grasa, cruzar alimentación, sueño, movimiento, pasos y entrenamiento, y analizar si los cambios son reales o solo variaciones por bioimpedancia, agua, glucógeno, estrés, digestión o error de medición.',
+      '',
+      'Debe hacerme preguntas puntuales cuando detecte dudas o inconsistencias, por ejemplo despertares nocturnos, respiración baja, cambios bruscos de peso o grasa, calorías fuera de patrón, pasos altos/bajos o entrenamientos que puedan alterar el sueño.',
+      '',
+      'No debe concluir aumento o pérdida real de grasa por un solo día. Debe analizar tendencias, contexto y comportamiento acumulado dentro del histórico NEUROBASE.',
+      '',
+      'También debe registrar todos los datos en memoria, exceptuando por si en alguna ocasión yo pida expresamente no hacerlo o eliminarlo.',
+    ] : []),
   ].join('\n'));
 }
 
@@ -1742,6 +1746,29 @@ function exportProgressTxt() {
   URL.revokeObjectURL(url);
 
   showProgressStatus(`Se exportó ${lines.length} registro en TXT para ${selectedDate}.`, 'success');
+}
+
+function downloadAllRecordsTxt() {
+  if (!state.progressLog.length) {
+    showProgressStatus('No hay registros para exportar.', 'warning');
+    return;
+  }
+
+  const lines = buildProgressTxtLines(state.progressLog, { includeChatGptNote: false });
+  const blob = new Blob([`\ufeff${lines.join('\n\n')}`], {
+    type: 'text/plain;charset=utf-8;',
+  });
+
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'historial-registros.txt';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+
+  showProgressStatus(`Se exportaron ${lines.length} registros en TXT (historial).`, 'success');
 }
 
 function exportProgressJson() {
@@ -2144,6 +2171,10 @@ function bindProgressEvents() {
 
   if (progressFields.exportTxt) {
     progressFields.exportTxt.addEventListener('click', exportProgressTxt);
+  }
+
+  if (progressFields.exportAllTxt) {
+    progressFields.exportAllTxt.addEventListener('click', downloadAllRecordsTxt);
   }
 
   if (progressFields.exportJson) {
