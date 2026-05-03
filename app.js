@@ -1456,15 +1456,21 @@ function renderMeals() {
               >
                 ${isCollapsed ? 'Mostrar comida' : 'Ocultar comida'}
               </button>
-              <button type="button" class="secondary export-meal-button" data-meal-index="${mealIndex}">
-                Descargar comida
-              </button>
-              <button type="button" class="secondary import-meal-button" data-meal-index="${mealIndex}">
-                Cargar en esta comida
-              </button>
-              <button type="button" class="primary add-food-toggle" ${state.foodLibrary.length ? '' : 'disabled'}>
-                Agregar ingrediente
-              </button>
+              ${
+                isCollapsed
+                  ? ''
+                  : `
+                    <button type="button" class="secondary export-meal-button" data-meal-index="${mealIndex}">
+                      Descargar comida
+                    </button>
+                    <button type="button" class="secondary import-meal-button" data-meal-index="${mealIndex}">
+                      Cargar en esta comida
+                    </button>
+                    <button type="button" class="primary add-food-toggle" ${state.foodLibrary.length ? '' : 'disabled'}>
+                      Agregar ingrediente
+                    </button>
+                  `
+              }
             </div>
           </div>
 
