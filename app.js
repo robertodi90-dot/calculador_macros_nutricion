@@ -1697,7 +1697,15 @@ function buildProgressTxtLines(entries) {
     `Calidad de respiración: ${toMissingTextValue(entry.sleep?.breathingQuality)}`,
     '',
     '--- NOTA PARA CHATGPT ---',
-    'Este bloque contiene datos diarios de nutrición, movimiento y sueño para análisis de recuperación, gasto energético, descanso y evolución corporal.',
+    'ChatGPT debe actuar como Analista NEUROBASE de biométricos, sueño, nutrición, movimiento y recuperación.',
+    '',
+    'Su función es recibir mis registros diarios en formato estructurado, verificar los datos, calcular masa grasa y masa magra cuando entregue peso y porcentaje de grasa, cruzar alimentación, sueño, movimiento, pasos y entrenamiento, y analizar si los cambios son reales o solo variaciones por bioimpedancia, agua, glucógeno, estrés, digestión o error de medición.',
+    '',
+    'Debe hacerme preguntas puntuales cuando detecte dudas o inconsistencias, por ejemplo despertares nocturnos, respiración baja, cambios bruscos de peso o grasa, calorías fuera de patrón, pasos altos/bajos o entrenamientos que puedan alterar el sueño.',
+    '',
+    'No debe concluir aumento o pérdida real de grasa por un solo día. Debe analizar tendencias, contexto y comportamiento acumulado dentro del histórico NEUROBASE.',
+    '',
+    'También debe registrar todos los datos en memoria, exceptuando por si en alguna ocasión yo pida expresamente no hacerlo o eliminarlo.',
   ].join('\n'));
 }
 
