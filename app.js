@@ -46,6 +46,7 @@ const progressFields = {
   form: document.getElementById('progressLogForm'),
   date: document.getElementById('progressDate'),
   weight: document.getElementById('progressWeight'),
+  weightPoundsPreview: document.getElementById('weightPoundsPreview'),
   bodyFat: document.getElementById('progressBodyFat'),
   waist: document.getElementById('progressWaist'),
   movementImage: document.getElementById('progressMovementImage'),
@@ -2006,9 +2007,26 @@ function bindLibraryEvents() {
   }
 }
 
+
+function updateWeightPoundsPreview() {
+  if (!progressFields.weightPoundsPreview) return;
+
+  const kg = toNumber(progressFields.weight?.value);
+  if (kg === null || kg <= 0) {
+    progressFields.weightPoundsPreview.textContent = '-- lb';
+    return;
+  }
+
+  const pounds = kg * 2.20462;
+  progressFields.weightPoundsPreview.textContent = `${pounds.toFixed(1)} lb`;
+}
+
 function bindProgressEvents() {
   if (!progressFields.form) return;
 
+  updateWeightPoundsPreview();
+  progressFields.weight?.addEventListener('input', updateWeightPoundsPreview);
+  progressFields.weight?.addEventListener('change', updateWeightPoundsPreview);
 
   progressFields.form.addEventListener('submit', (event) => {
     event.preventDefault();
@@ -2051,6 +2069,7 @@ function bindProgressEvents() {
     saveProgressLog();
 
     progressFields.form.reset();
+    updateWeightPoundsPreview();
     updateImagePreview(progressFields.movementPreview, null);
     updateImagePreview(progressFields.sleepPreview, null);
     progressFields.error.textContent = '';
