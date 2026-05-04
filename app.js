@@ -1504,12 +1504,12 @@ function renderMeals() {
             <div class="meal-actions">
               <button
                 type="button"
-                class="secondary toggle-meal-visibility-button"
+                class="secondary toggle-meal-visibility-button collapsible-toggle-button"
                 data-meal-index="${mealIndex}"
                 aria-expanded="${String(!isCollapsed)}"
                 aria-controls="${mealPanelId}"
               >
-                ${isCollapsed ? 'Mostrar comida' : 'Ocultar comida'}
+                ${getToggleButtonContent(!isCollapsed, 'Mostrar comida', 'Ocultar comida')}
               </button>
               ${
                 isCollapsed
@@ -2479,6 +2479,24 @@ function bindProgressEvents() {
   }
 }
 
+
+const TOGGLE_SHOW_ICON = 'assets/icons/mostrar.png';
+const TOGGLE_HIDE_ICON = 'assets/icons/ocultar.png';
+
+function getToggleButtonContent(isExpanded, showText, hideText) {
+  const iconSrc = isExpanded ? TOGGLE_HIDE_ICON : TOGGLE_SHOW_ICON;
+  const text = isExpanded ? hideText : showText;
+  return `
+    <img src="${iconSrc}" alt="" class="toggle-button-icon" aria-hidden="true">
+    <span>${text}</span>
+  `;
+}
+
+function setToggleButtonContent(button, isExpanded, showText, hideText) {
+  button.classList.add('collapsible-toggle-button');
+  button.innerHTML = getToggleButtonContent(isExpanded, showText, hideText);
+}
+
 function initCollapsibleSection(buttonId, panelId, showText, hideText, onToggle) {
   const button = document.getElementById(buttonId);
   const panel = document.getElementById(panelId);
@@ -2487,7 +2505,7 @@ function initCollapsibleSection(buttonId, panelId, showText, hideText, onToggle)
   const syncView = (isOpen) => {
     panel.classList.toggle('hidden', !isOpen);
     button.setAttribute('aria-expanded', String(isOpen));
-    button.textContent = isOpen ? hideText : showText;
+    setToggleButtonContent(button, isOpen, showText, hideText);
     onToggle?.(isOpen);
   };
 

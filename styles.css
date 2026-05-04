@@ -388,6 +388,21 @@ select:focus {
   justify-self: start;
 }
 
+
+.collapsible-toggle-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.toggle-button-icon {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+
 .hidden {
   display: none !important;
 }
