@@ -1508,8 +1508,10 @@ function renderMeals() {
                 data-meal-index="${mealIndex}"
                 aria-expanded="${String(!isCollapsed)}"
                 aria-controls="${mealPanelId}"
+                aria-label="${isCollapsed ? 'Mostrar comida' : 'Ocultar comida'}"
+                title="${isCollapsed ? 'Mostrar comida' : 'Ocultar comida'}"
               >
-                ${getToggleButtonContent(!isCollapsed, 'Mostrar comida', 'Ocultar comida')}
+                ${getToggleButtonContent(!isCollapsed)}
               </button>
               ${
                 isCollapsed
@@ -2483,18 +2485,19 @@ function bindProgressEvents() {
 const showIcon = "/assets/icons/mostrar.png";
 const hideIcon = "/assets/icons/ocultar.png";
 
-function getToggleButtonContent(isExpanded, showText, hideText) {
+function getToggleButtonContent(isExpanded) {
   const iconSrc = isExpanded ? hideIcon : showIcon;
-  const text = isExpanded ? hideText : showText;
   return `
     <img src="${iconSrc}" alt="" class="toggle-button-icon" aria-hidden="true">
-    <span>${text}</span>
   `;
 }
 
 function setToggleButtonContent(button, isExpanded, showText, hideText) {
-  button.classList.add('collapsible-toggle-button');
-  button.innerHTML = getToggleButtonContent(isExpanded, showText, hideText);
+  const label = isExpanded ? hideText : showText;
+  button.classList.add('collapsible-toggle-button', 'icon-only-toggle');
+  button.innerHTML = getToggleButtonContent(isExpanded);
+  button.setAttribute('aria-label', label);
+  button.setAttribute('title', label);
 }
 
 function initCollapsibleSection(buttonId, panelId, showText, hideText, onToggle) {
