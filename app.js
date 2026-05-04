@@ -2480,11 +2480,11 @@ function bindProgressEvents() {
 }
 
 
-const TOGGLE_SHOW_ICON = 'assets/icons/mostrar.png';
-const TOGGLE_HIDE_ICON = 'assets/icons/ocultar.png';
+const showIcon = "/assets/icons/mostrar.png";
+const hideIcon = "/assets/icons/ocultar.png";
 
 function getToggleButtonContent(isExpanded, showText, hideText) {
-  const iconSrc = isExpanded ? TOGGLE_HIDE_ICON : TOGGLE_SHOW_ICON;
+  const iconSrc = isExpanded ? hideIcon : showIcon;
   const text = isExpanded ? hideText : showText;
   return `
     <img src="${iconSrc}" alt="" class="toggle-button-icon" aria-hidden="true">
