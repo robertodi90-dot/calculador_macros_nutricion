@@ -240,22 +240,48 @@
               </button>
               <fieldset id="movementCapturePanel" class="capture-section hidden">
                 <legend>Captura de movimiento</legend>
-                <label for="progressMovementImage">
-                  Imagen de movimiento <span class="optional-mark">(opcional)</span>
-                  <input id="progressMovementImage" name="movementImage" type="file" accept="image/*" />
-                </label>
-                <img id="progressMovementPreview" class="capture-preview hidden" alt="Vista previa de movimiento" />
-                <div class="capture-actions">
-                  <button id="extractMovementDataButton" type="button" class="secondary">
-                    Extraer datos de movimiento
-                  </button>
-                  <p id="movementOcrStatus" class="status-message capture-status" aria-live="polite"></p>
-                </div>
-                <div class="capture-grid">
-                  <label for="movementCaloriesBurned">
-                    Calorías gastadas (kcal)
-                    <input id="movementCaloriesBurned" name="movementCaloriesBurned" type="number" min="0" step="1" inputmode="numeric" />
-                  </label>
+                <div class="movement-capture-grid">
+                  <section class="capture-block" aria-labelledby="movementCaloriesCaptureTitle">
+                    <h3 id="movementCaloriesCaptureTitle">Movimiento / calorías</h3>
+                    <label for="progressMovementImage">
+                      Imagen de movimiento <span class="optional-mark">(opcional)</span>
+                      <input id="progressMovementImage" name="movementImage" type="file" accept="image/*" />
+                    </label>
+                    <img id="progressMovementPreview" class="capture-preview hidden" alt="Vista previa de movimiento" />
+                    <div class="capture-actions">
+                      <button id="extractMovementDataButton" type="button" class="secondary">
+                        Extraer datos de movimiento
+                      </button>
+                      <p id="movementOcrStatus" class="status-message capture-status" aria-live="polite"></p>
+                    </div>
+                    <div class="capture-grid">
+                      <label for="movementCaloriesBurned">
+                        Calorías gastadas (kcal)
+                        <input id="movementCaloriesBurned" name="movementCaloriesBurned" type="number" min="0" step="1" inputmode="numeric" />
+                      </label>
+                    </div>
+                  </section>
+
+                  <section class="capture-block" aria-labelledby="movementStepsCaptureTitle">
+                    <h3 id="movementStepsCaptureTitle">Pasos</h3>
+                    <label for="progressStepsImage">
+                      Imagen de pasos <span class="optional-mark">(opcional)</span>
+                      <input id="progressStepsImage" name="stepsImage" type="file" accept="image/*" />
+                    </label>
+                    <img id="progressStepsPreview" class="capture-preview hidden" alt="Vista previa de pasos" />
+                    <div class="capture-actions">
+                      <button id="extractStepsDataButton" type="button" class="secondary">
+                        Extraer pasos
+                      </button>
+                      <p id="stepsOcrStatus" class="status-message capture-status" aria-live="polite"></p>
+                    </div>
+                    <div class="capture-grid">
+                      <label for="movementSteps">
+                        Pasos
+                        <input id="movementSteps" name="movementSteps" type="number" min="0" step="1" inputmode="numeric" />
+                      </label>
+                    </div>
+                  </section>
                 </div>
               </fieldset>
 

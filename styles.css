@@ -353,6 +353,26 @@ select:focus {
   background: var(--card);
 }
 
+
+.movement-capture-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.capture-block {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px;
+  display: grid;
+  gap: 8px;
+  background: var(--surface-alt);
+}
+
+.capture-block h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
 .capture-section legend {
   padding: 0 6px;
   color: var(--muted);
@@ -620,6 +640,12 @@ body.printing-menu #printMenuSection {
   .summary-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
+
+  .movement-capture-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
+
 }
 
 @media (min-width: 1100px) {
