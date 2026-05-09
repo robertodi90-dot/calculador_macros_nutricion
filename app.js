@@ -339,6 +339,9 @@ function extractMovementDataFromText(text) {
   return movement;
 }
 
+const STEP_NUMBER_PATTERN = String.raw`(?:\d{1,3}(?:[.,]\d{3})+|\d{1,3}(?:\s\d{3})+|\d{4,6}|\d{1,3})`;
+const STEP_GOAL_CONTEXT_PATTERN = /(?:objetivo|meta|goal|target)\s*[:\-]?\s*$/i;
+
 function normalizeStepsValue(rawValue) {
   const digits = String(rawValue || '').replace(/[.,\s]/g, '');
   if (!/^\d+$/.test(digits)) return null;
@@ -346,13 +349,53 @@ function normalizeStepsValue(rawValue) {
   return Number.isSafeInteger(steps) && steps >= 0 ? steps : null;
 }
 
+function isLikelyExtractedStepCount(value) {
+  return Number.isSafeInteger(value) && value > 500 && value < 100000;
+}
+
+function hasStepGoalContext(textBeforeCandidate) {
+  const context = String(textBeforeCandidate || '').slice(-30);
+  return STEP_GOAL_CONTEXT_PATTERN.test(context);
+}
+
+function addStepCandidate(candidates, rawValue, score, textBeforeCandidate = '') {
+  const steps = normalizeStepsValue(rawValue);
+  if (!isLikelyExtractedStepCount(steps)) return;
+  if (hasStepGoalContext(textBeforeCandidate)) return;
+  candidates.push({ steps, score });
+}
+
 function extractStepsDataFromText(text) {
   const normalized = String(text || '').replace(/\s+/g, ' ').trim();
   const movement = {};
-  const stepsBeforeLabel = normalized.match(/(\d{1,3}(?:[.,\s]\d{3})+|\d+)\s*(?:\/\s*(?:\d{1,3}(?:[.,\s]\d{3})+|\d+))?\s*pasos/i);
-  const fallbackSteps = normalized.match(/pasos\s*[:\-]?\s*(\d{1,3}(?:[.,\s]\d{3})+|\d+)/i);
-  const steps = normalizeStepsValue(stepsBeforeLabel?.[1] || fallbackSteps?.[1]);
-  if (steps !== null) movement.steps = steps;
+  const candidates = [];
+
+  // Testing rápido para OCR de pasos:
+  // "13,483 pasos", "13.483 pasos", "13 483 pasos", "13483 pasos" => 13483.
+  // "13,483/10,000 pasos" => 13483; "Calorías 383 kcal Distancia 9.06 km" => sin pasos.
+  const stepsBeforeLabelPattern = new RegExp(String.raw`(^|[^\d.,])(${STEP_NUMBER_PATTERN})\s*(?:/\s*(${STEP_NUMBER_PATTERN}))?\s*pasos\b`, 'gi');
+  let beforeMatch;
+  while ((beforeMatch = stepsBeforeLabelPattern.exec(normalized)) !== null) {
+    const prefix = beforeMatch[1] || '';
+    const rawSteps = beforeMatch[2];
+    const candidateStart = beforeMatch.index + prefix.length;
+    const hasSlashGoal = Boolean(beforeMatch[3]);
+    addStepCandidate(
+      candidates,
+      rawSteps,
+      hasSlashGoal ? 120 : 110,
+      normalized.slice(0, candidateStart),
+    );
+  }
+
+  const stepsAfterLabelPattern = new RegExp(String.raw`\bpasos\s*[:\-]?\s*(${STEP_NUMBER_PATTERN})`, 'gi');
+  let afterMatch;
+  while ((afterMatch = stepsAfterLabelPattern.exec(normalized)) !== null) {
+    addStepCandidate(candidates, afterMatch[1], 80, normalized.slice(0, afterMatch.index));
+  }
+
+  candidates.sort((a, b) => b.score - a.score || b.steps - a.steps);
+  if (candidates[0]) movement.steps = candidates[0].steps;
   return movement;
 }
 
@@ -2542,6 +2585,7 @@ function bindProgressEvents() {
     progressFields.extractStepsButton.disabled = true;
     showStatus(progressFields.stepsOcrStatus, 'Leyendo imagen...', 'warning');
     try {
+      // OCR sobre el archivo original subido para no perder dígitos por una preview reducida.
       const text = await runOcrFromImage(file);
       const data = extractStepsDataFromText(text);
       fillStepsFields(data);
