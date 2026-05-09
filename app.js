@@ -58,6 +58,11 @@ const progressFields = {
   extractMovementButton: document.getElementById('extractMovementDataButton'),
   movementOcrStatus: document.getElementById('movementOcrStatus'),
   movementCaloriesBurned: document.getElementById('movementCaloriesBurned'),
+  stepsImage: document.getElementById('progressStepsImage'),
+  stepsPreview: document.getElementById('progressStepsPreview'),
+  extractStepsButton: document.getElementById('extractStepsDataButton'),
+  stepsOcrStatus: document.getElementById('stepsOcrStatus'),
+  movementSteps: document.getElementById('movementSteps'),
   sleepImage: document.getElementById('progressSleepImage'),
   sleepPreview: document.getElementById('progressSleepPreview'),
   extractSleepButton: document.getElementById('extractSleepDataButton'),
@@ -246,9 +251,11 @@ function normalizeProgressLogEntry(rawEntry) {
     calories,
     waist,
     movementImage: typeof rawEntry.movementImage === 'string' ? rawEntry.movementImage : null,
+    stepsImage: typeof rawEntry.stepsImage === 'string' ? rawEntry.stepsImage : null,
     sleepImage: typeof rawEntry.sleepImage === 'string' ? rawEntry.sleepImage : null,
     movement: {
       caloriesBurned: toNumber(movement.caloriesBurned),
+      steps: toNumber(movement.steps),
       goalCalories: toNumber(movement.goalCalories),
       runPercent: toNumber(movement.runPercent),
       walkPercent: toNumber(movement.walkPercent),
@@ -329,6 +336,23 @@ function extractMovementDataFromText(text) {
     const kcalBurned = normalized.match(/(?:movimiento|gastad[ao]s?)?\s*(\d{2,4})\s*kcal/i);
     if (kcalBurned) movement.caloriesBurned = Number(kcalBurned[1]);
   }
+  return movement;
+}
+
+function normalizeStepsValue(rawValue) {
+  const digits = String(rawValue || '').replace(/[.,\s]/g, '');
+  if (!/^\d+$/.test(digits)) return null;
+  const steps = Number(digits);
+  return Number.isSafeInteger(steps) && steps >= 0 ? steps : null;
+}
+
+function extractStepsDataFromText(text) {
+  const normalized = String(text || '').replace(/\s+/g, ' ').trim();
+  const movement = {};
+  const stepsBeforeLabel = normalized.match(/(\d{1,3}(?:[.,\s]\d{3})+|\d+)\s*(?:\/\s*(?:\d{1,3}(?:[.,\s]\d{3})+|\d+))?\s*pasos/i);
+  const fallbackSteps = normalized.match(/pasos\s*[:\-]?\s*(\d{1,3}(?:[.,\s]\d{3})+|\d+)/i);
+  const steps = normalizeStepsValue(stepsBeforeLabel?.[1] || fallbackSteps?.[1]);
+  if (steps !== null) movement.steps = steps;
   return movement;
 }
 
@@ -420,6 +444,10 @@ function extractSleepDataFromText(text) {
 
 function fillMovementFields(data) {
   if (data.caloriesBurned !== undefined) progressFields.movementCaloriesBurned.value = data.caloriesBurned;
+}
+
+function fillStepsFields(data) {
+  if (data.steps !== undefined) progressFields.movementSteps.value = data.steps;
 }
 
 function fillSleepFields(data) {
@@ -1783,6 +1811,7 @@ function bindProgressListEvents() {
         calories: nextCalories,
         waist: nextWaist,
         movementImage: entry.movementImage,
+        stepsImage: entry.stepsImage,
         sleepImage: entry.sleepImage,
         movement: entry.movement,
         sleep: entry.sleep,
@@ -1935,6 +1964,12 @@ function toMissingTextValue(value) {
   return value === null || value === undefined || value === '' ? 'no ingresado' : value;
 }
 
+function formatStepsForTxt(value) {
+  const steps = toNumber(value);
+  if (steps === null) return 'no registrado';
+  return new Intl.NumberFormat('de-DE', { maximumFractionDigits: 0 }).format(Math.round(steps));
+}
+
 function getCurrentNutritionSummarySnapshot() {
   const totals = getDayTotals();
   const remaining = state.dailyCalorieGoal - totals.calories;
@@ -1975,6 +2010,7 @@ function buildProgressTxtLines(entries, options = {}) {
     '',
     '--- MOVIMIENTO ---',
     `Calorías gastadas: ${toMissingTextValue(entry.movement?.caloriesBurned)}${entry.movement?.caloriesBurned === null ? '' : ' kcal'}`,
+    `Pasos: ${formatStepsForTxt(entry.movement?.steps)}`,
     '',
     '--- SUEÑO ---',
     `Puntaje sueño: ${toMissingTextValue(entry.sleep?.score)}${entry.sleep?.score === null ? '' : ' puntos'}`,
@@ -2077,6 +2113,7 @@ function exportProgressJson() {
       waist: entry.waist ?? null,
       sleepImage: entry.sleepImage ?? null,
       movementImage: entry.movementImage ?? null,
+      stepsImage: entry.stepsImage ?? null,
       movement: entry.movement,
       sleep: entry.sleep,
       nutritionSummary: entry.nutritionSummary ?? null,
@@ -2142,6 +2179,64 @@ function importProgressRecords(file) {
 
   reader.onload = () => {
     const rawText = String(reader.result || '').replace(/^\ufeff/, '');
+    const parsedJson = parseJsonSafe(rawText);
+
+    if (parsedJson) {
+      const rawRecords = Array.isArray(parsedJson)
+        ? parsedJson
+        : Array.isArray(parsedJson.progressLog)
+          ? parsedJson.progressLog
+          : [];
+      const imported = rawRecords
+        .map((entry) => normalizeProgressLogEntry({ ...(entry || {}), id: entry?.id || createLogId() }))
+        .filter(Boolean);
+
+      if (!imported.length) {
+        showProgressStatus('No se encontraron registros JSON válidos para importar.', 'warning');
+        return;
+      }
+
+      const replace = confirm(
+        '¿Deseas reemplazar los registros actuales?\nAceptar = Reemplazar\nCancelar = Combinar sin duplicados'
+      );
+
+      if (replace) {
+        state.progressLog = sortProgressLogDesc(imported);
+        saveProgressLog();
+        renderProgressLog();
+        showProgressStatus(
+          `Se importaron ${state.progressLog.length} registros JSON (reemplazo completo).`,
+          'success'
+        );
+        return;
+      }
+
+      const existingFingerprints = new Set(
+        state.progressLog.map((entry) =>
+          [entry.date, entry.weight, entry.bodyFat, entry.calories].join('__')
+        )
+      );
+
+      let addedCount = 0;
+
+      imported.forEach((entry) => {
+        const fingerprint = [entry.date, entry.weight, entry.bodyFat, entry.calories].join('__');
+        if (existingFingerprints.has(fingerprint)) return;
+        existingFingerprints.add(fingerprint);
+        state.progressLog.push(entry);
+        addedCount += 1;
+      });
+
+      state.progressLog = sortProgressLogDesc(state.progressLog);
+      saveProgressLog();
+      renderProgressLog();
+      showProgressStatus(
+        `Importación JSON completada. ${addedCount} nuevos, total ${state.progressLog.length}.`,
+        'success'
+      );
+      return;
+    }
+
     const lines = rawText.split(/\r?\n/).filter((line) => line.trim());
 
     if (lines.length < 2) {
@@ -2352,9 +2447,11 @@ function bindProgressEvents() {
         bodyFat: progressFields.bodyFat.value,
         waist: progressFields.waist.value,
         movementImage: progressFields.movementPreview?.src || null,
+        stepsImage: progressFields.stepsPreview?.src || null,
         sleepImage: progressFields.sleepPreview?.src || null,
         movement: {
           caloriesBurned: progressFields.movementCaloriesBurned.value,
+          steps: progressFields.movementSteps.value,
         },
         sleep: {
           score: progressFields.sleepScore.value,
@@ -2385,6 +2482,7 @@ function bindProgressEvents() {
     progressFields.form.reset();
     updateWeightPoundsPreview();
     updateImagePreview(progressFields.movementPreview, null);
+    updateImagePreview(progressFields.stepsPreview, null);
     updateImagePreview(progressFields.sleepPreview, null);
     progressFields.error.textContent = '';
     renderProgressLog();
@@ -2393,6 +2491,7 @@ function bindProgressEvents() {
 
   const imageHandlers = [
     { input: progressFields.movementImage, preview: progressFields.movementPreview },
+    { input: progressFields.stepsImage, preview: progressFields.stepsPreview },
     { input: progressFields.sleepImage, preview: progressFields.sleepPreview },
   ];
 
@@ -2431,6 +2530,27 @@ function bindProgressEvents() {
       showStatus(progressFields.movementOcrStatus, 'No se pudo leer la imagen. Puedes completar los datos manualmente.', 'error');
     } finally {
       progressFields.extractMovementButton.disabled = false;
+    }
+  });
+
+  progressFields.extractStepsButton?.addEventListener('click', async () => {
+    const [file] = progressFields.stepsImage?.files || [];
+    if (!file) {
+      showStatus(progressFields.stepsOcrStatus, 'Primero sube una imagen', 'warning');
+      return;
+    }
+    progressFields.extractStepsButton.disabled = true;
+    showStatus(progressFields.stepsOcrStatus, 'Leyendo imagen...', 'warning');
+    try {
+      const text = await runOcrFromImage(file);
+      const data = extractStepsDataFromText(text);
+      fillStepsFields(data);
+      const detected = Object.keys(data).length;
+      showStatus(progressFields.stepsOcrStatus, detected ? 'Pasos extraídos' : 'No se detectaron pasos', detected ? 'success' : 'warning');
+    } catch {
+      showStatus(progressFields.stepsOcrStatus, 'No se pudo leer la imagen. Puedes completar los pasos manualmente.', 'error');
+    } finally {
+      progressFields.extractStepsButton.disabled = false;
     }
   });
 
