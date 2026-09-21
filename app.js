@@ -232,6 +232,7 @@ function normalizeProgressLogEntry(rawEntry) {
   const movement = rawEntry.movement && typeof rawEntry.movement === 'object' ? rawEntry.movement : {};
   const sleep = rawEntry.sleep && typeof rawEntry.sleep === 'object' ? rawEntry.sleep : {};
   const nutritionSummary = normalizeNutritionSummary(rawEntry.nutritionSummary);
+  const mealsSnapshot = normalizeMealsSnapshot(rawEntry.mealsSnapshot);
 
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
   if (weight === null || weight <= 0) return null;
@@ -277,7 +278,58 @@ function normalizeProgressLogEntry(rawEntry) {
       breathingQuality: toNumber(sleep.breathingQuality),
     },
     nutritionSummary,
+    mealsSnapshot,
   };
+}
+
+function normalizeMealsSnapshot(rawSnapshot) {
+  if (!Array.isArray(rawSnapshot)) return null;
+
+  return rawSnapshot
+    .map((rawMeal) => {
+      if (!rawMeal || typeof rawMeal !== 'object') return null;
+
+      const mealNumber = toNumber(rawMeal.mealNumber);
+      const ingredients = Array.isArray(rawMeal.ingredients)
+        ? rawMeal.ingredients
+            .map((rawIngredient) => {
+              if (!rawIngredient || typeof rawIngredient !== 'object') return null;
+              const name = typeof rawIngredient.name === 'string' ? rawIngredient.name.trim() : '';
+              const grams = toNumber(rawIngredient.grams);
+              if (!name || grams === null || grams <= 0) return null;
+
+              return {
+                name,
+                grams,
+                protein: toNumber(rawIngredient.protein),
+                carbs: toNumber(rawIngredient.carbs),
+                fat: toNumber(rawIngredient.fat),
+                calories: toNumber(rawIngredient.calories),
+              };
+            })
+            .filter(Boolean)
+        : [];
+      const rawSubtotal = rawMeal.subtotal && typeof rawMeal.subtotal === 'object'
+        ? rawMeal.subtotal
+        : {};
+
+      if (mealNumber === null || mealNumber < 1 || !ingredients.length) return null;
+
+      return {
+        mealNumber: Math.round(mealNumber),
+        name: typeof rawMeal.name === 'string' && rawMeal.name.trim()
+          ? rawMeal.name.trim()
+          : `Comida ${Math.round(mealNumber)}`,
+        ingredients,
+        subtotal: {
+          protein: toNumber(rawSubtotal.protein) ?? 0,
+          carbs: toNumber(rawSubtotal.carbs) ?? 0,
+          fat: toNumber(rawSubtotal.fat) ?? 0,
+          calories: toNumber(rawSubtotal.calories) ?? 0,
+        },
+      };
+    })
+    .filter(Boolean);
 }
 
 function normalizeNutritionSummary(rawSummary) {
@@ -1859,6 +1911,7 @@ function bindProgressListEvents() {
         movement: entry.movement,
         sleep: entry.sleep,
         nutritionSummary: entry.nutritionSummary ?? null,
+        mealsSnapshot: entry.mealsSnapshot ?? null,
       });
 
       if (!updated) {
@@ -2033,6 +2086,48 @@ function getCurrentNutritionSummarySnapshot() {
   };
 }
 
+function getCurrentMealsSnapshot() {
+  return state.meals.reduce((snapshot, meal, index) => {
+    if (!Array.isArray(meal.foods) || !meal.foods.length) return snapshot;
+
+    const subtotal = getMealTotals(meal);
+    snapshot.push({
+      mealNumber: index + 1,
+      name: meal.name,
+      ingredients: meal.foods.map((food) => {
+        const totals = getFoodTotals(food);
+        return {
+          name: food.name,
+          grams: food.consumedGrams,
+          protein: Number(totals.protein.toFixed(1)),
+          carbs: Number(totals.carbs.toFixed(1)),
+          fat: Number(totals.fat.toFixed(1)),
+          calories: Math.round(totals.calories),
+        };
+      }),
+      subtotal: {
+        protein: Number(subtotal.protein.toFixed(1)),
+        carbs: Number(subtotal.carbs.toFixed(1)),
+        fat: Number(subtotal.fat.toFixed(1)),
+        calories: Math.round(subtotal.calories),
+      },
+    });
+    return snapshot;
+  }, []);
+}
+
+function formatMealsSnapshotForTxt(mealsSnapshot) {
+  if (!Array.isArray(mealsSnapshot)) return ['Detalle de comidas: no registrado'];
+  if (!mealsSnapshot.length) return ['Detalle de comidas: ninguna comida con ingredientes'];
+
+  return mealsSnapshot.flatMap((meal) => [
+    `COMIDA ${meal.mealNumber}`,
+    ...meal.ingredients.map((ingredient) => `- ${ingredient.name}: ${ingredient.grams} g`),
+    `Subtotal: P ${meal.subtotal.protein.toFixed(1)} g · C ${meal.subtotal.carbs.toFixed(1)} g · G ${meal.subtotal.fat.toFixed(1)} g · ${Math.round(meal.subtotal.calories)} kcal`,
+    '',
+  ]).slice(0, -1);
+}
+
 function buildProgressTxtLines(entries, options = {}) {
   const { includeChatGptNote = true } = options;
   return sortProgressLogDesc(entries).map((entry, index) => [
@@ -2045,11 +2140,15 @@ function buildProgressTxtLines(entries, options = {}) {
     `Grasa corporal: ${entry.bodyFat === null ? 'no ingresado' : `${entry.bodyFat}%`}`,
     `Medida cintura/estómago: ${entry.waist === null ? 'no ingresado' : `${entry.waist} cm`}`,
     '',
-    '--- ALIMENTACIÓN / RESUMEN DIARIO ---',
+    '--- ALIMENTACIÓN ---',
+    '',
+    'Resumen diario:',
     `Proteínas: ${entry.nutritionSummary?.proteinGrams === null || entry.nutritionSummary?.proteinGrams === undefined ? 'no registrado' : `${entry.nutritionSummary.proteinGrams.toFixed(1)} g`}`,
     `Carbohidratos: ${entry.nutritionSummary?.carbsGrams === null || entry.nutritionSummary?.carbsGrams === undefined ? 'no registrado' : `${entry.nutritionSummary.carbsGrams.toFixed(1)} g`}`,
     `Grasas: ${entry.nutritionSummary?.fatGrams === null || entry.nutritionSummary?.fatGrams === undefined ? 'no registrado' : `${entry.nutritionSummary.fatGrams.toFixed(1)} g`}`,
     `Calorías consumidas: ${entry.nutritionSummary?.consumedCalories === null || entry.nutritionSummary?.consumedCalories === undefined ? 'no registrado' : `${entry.nutritionSummary.consumedCalories} kcal`}`,
+    '',
+    ...formatMealsSnapshotForTxt(entry.mealsSnapshot),
     '',
     '--- MOVIMIENTO ---',
     `Calorías gastadas: ${toMissingTextValue(entry.movement?.caloriesBurned)}${entry.movement?.caloriesBurned === null ? '' : ' kcal'}`,
@@ -2160,6 +2259,7 @@ function exportProgressJson() {
       movement: entry.movement,
       sleep: entry.sleep,
       nutritionSummary: entry.nutritionSummary ?? null,
+      mealsSnapshot: entry.mealsSnapshot ?? null,
     })),
   };
 
@@ -2486,27 +2586,28 @@ function bindProgressEvents() {
     const entry = normalizeProgressLogEntry({
       id: createLogId(),
       date: progressFields.date.value,
-        weight: progressFields.weight.value,
-        bodyFat: progressFields.bodyFat.value,
-        waist: progressFields.waist.value,
-        movementImage: progressFields.movementPreview?.src || null,
-        stepsImage: progressFields.stepsPreview?.src || null,
-        sleepImage: progressFields.sleepPreview?.src || null,
-        movement: {
-          caloriesBurned: progressFields.movementCaloriesBurned.value,
-          steps: progressFields.movementSteps.value,
-        },
-        sleep: {
-          score: progressFields.sleepScore.value,
-          total: progressFields.sleepTotal.value,
-          deepPercent: progressFields.sleepDeepPercent.value,
-          lightPercent: progressFields.sleepLightPercent.value,
-          remPercent: progressFields.sleepRemPercent.value,
-          awakenings: progressFields.sleepAwakenings.value,
-          deepContinuity: progressFields.sleepDeepContinuity.value,
-          breathingQuality: progressFields.sleepBreathingQuality.value,
-        },
-        nutritionSummary: getCurrentNutritionSummarySnapshot(),
+      weight: progressFields.weight.value,
+      bodyFat: progressFields.bodyFat.value,
+      waist: progressFields.waist.value,
+      movementImage: progressFields.movementPreview?.src || null,
+      stepsImage: progressFields.stepsPreview?.src || null,
+      sleepImage: progressFields.sleepPreview?.src || null,
+      movement: {
+        caloriesBurned: progressFields.movementCaloriesBurned.value,
+        steps: progressFields.movementSteps.value,
+      },
+      sleep: {
+        score: progressFields.sleepScore.value,
+        total: progressFields.sleepTotal.value,
+        deepPercent: progressFields.sleepDeepPercent.value,
+        lightPercent: progressFields.sleepLightPercent.value,
+        remPercent: progressFields.sleepRemPercent.value,
+        awakenings: progressFields.sleepAwakenings.value,
+        deepContinuity: progressFields.sleepDeepContinuity.value,
+        breathingQuality: progressFields.sleepBreathingQuality.value,
+      },
+      nutritionSummary: getCurrentNutritionSummarySnapshot(),
+      mealsSnapshot: getCurrentMealsSnapshot(),
     });
 
     if (!progressFields.date.value) {
